@@ -27,6 +27,20 @@ clock = pygame.time.Clock()
 # =======================================================
 # S O U N D  S E T U P
 # =======================================================
+# Sa SOUND SETUP section
+engine_start_sound = pygame.mixer.Sound("music/car starting.mp3") # Tunog ng pag-redondo
+engine_idle_sound = pygame.mixer.Sound("music/car sound.mp3")   # Tuloy-tuloy na ugong
+engine_start_sound.set_volume(0.6)
+engine_idle_sound.set_volume(0.4)
+
+engine_on = False
+is_starting = False
+idle_playing = False
+engine_start_timer = 0
+
+accident_sound = pygame.mixer.Sound("music/Accident sound.mp3")
+accident_sound.set_volume(0.7)
+
 powerup_sound = pygame.mixer.Sound("music/powerup.mp3")
 powerup_sound.set_volume(1.0)
 
@@ -234,7 +248,8 @@ jeep_speed = 0.9
 reverse_speed = 0.3
 jeep_img_rotated = jeep_img_original
 aura_alpha = 0
-
+engine_shake_x = 0 # DAGDAG ITO
+engine_shake_y = 0 # DAGDAG ITO
 # ======================================================
 # S U P E R  S A I Y A N  B O O S T  S Y S T E M
 # ======================================================
@@ -252,6 +267,15 @@ ss_speed_multiplier = 3.0   # Gaano kabilis kapag nka-boost (2.5x original speed
 gas_consume_normal = 0.001   # Bawas gas kapag umaandar lang (mabagal lang natin)
 gas_consume_charging = 0.03  # Mabilis na bawas gas habang nagcha-charge (bago pa mag-boost)
 gas_consume_boosting = 0.01  # Sobrang bilis na bawas gas habang nka-boost na
+
+# ======================================================
+# H E A L T H  S Y S T E M
+# ======================================================
+max_health = 100
+current_health = 100
+collision_damage = 10  # Bawas sa buhay kada bangga
+last_damage_time = 0   # Para hindi maubos agad ang buhay sa isang dikit lang
+damage_cooldown = 1000 # 1 second bago pwedeng mabawasan ulit
 
 # ======================================================
 # H O R N  W A V E  S E T U P
@@ -538,8 +562,7 @@ while running:
         # ======================================================
         # G L O B A L   B O O S T   I N P U T (HOLD TO CHARGE)
         # ======================================================
-        if not loading and state == "caldag_screen" and current_gas > 0:
-            
+        if not loading and state == "caldag_screen" and current_gas > 0 and engine_on:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1: # Left Click
                     if not ss_is_active:
@@ -574,6 +597,25 @@ while running:
                     if event.key == pygame.K_e:
                         headlight_on = not headlight_on
                         click_sound.play()
+                        
+                    if event.key == pygame.K_r:
+                        if not engine_on and not is_starting:
+                            is_starting = True
+                            engine_start_sound.play()
+                            engine_start_timer = pygame.time.get_ticks() # Kunin ang oras kung kailan pinindot
+                        elif engine_on:
+                            engine_on = False
+                            engine_idle_sound.stop()
+                            idle_playing = False
+                            click_sound.play()
+
+                            # --- DAGDAG MO ITONG MGA LINES NA ITO ---
+                            ss_charging = False
+                            ss_charge_power = 0
+                            powerup_sound.stop()
+                            charge_playing = False
+                            # ----------------------------------------
+                            
                     if event.key == pygame.K_RIGHT:
                         button_sound.play()
                         current_music_index = (current_music_index + 1) % len(playlist)
@@ -749,7 +791,8 @@ while running:
         current_consume_rate = 0 # variable para sa total bawas gas sa frame na ito
 
         # 1. Habang nagmamaneho (Normal gas consumption)
-        if keys[pygame.K_w] or keys[pygame.K_s]:
+        # 1. Habang nagmamaneho (Normal gas consumption) - Check engine_on
+        if (keys[pygame.K_w] or keys[pygame.K_s]) and engine_on:
             current_consume_rate = gas_consume_normal
 
         # 2. Habang nagcha-charge (MOUSE HOLD)
@@ -835,11 +878,25 @@ while running:
         
         # --- MOVEMENT (W at S) ---
         # --- MOVEMENT (W at S) ---
-        if (keys[pygame.K_w] or keys[pygame.K_s]) and current_gas > 0:
+        # --- MOVEMENT (W at S) WITH DAMAGE ---
+        # --- ENGINE START DELAY CHECK ---
+        # Pagkalipas ng 2000 milliseconds (2 seconds), mag-o-on ang makina
+        if is_starting:
+            if pygame.time.get_ticks() - engine_start_timer > 2000: 
+                engine_on = True
+                is_starting = False
+
+        # --- NEW MOVEMENT CONDITION ---
+        can_move = engine_on and current_gas > 0 and current_health > 0
+
+        if (keys[pygame.K_w] or keys[pygame.K_s]) and can_move:
+            # --- LOW FUEL BEEP ---
+            if current_gas <= 15 and random.randint(0, 80) == 0:
+                click_sound.play()
+                
             if keys[pygame.K_w]:
                 new_x = jeep_x - jeep_speed * math.sin(radians)
                 new_y = jeep_y - jeep_speed * math.cos(radians)
-                
                 jeep_rect = pygame.Rect(0, 0, 25, 45)
                 jeep_rect.center = (new_x, new_y)
                 
@@ -847,10 +904,18 @@ while running:
                 for wall in house_hitboxes:
                     if jeep_rect.colliderect(wall):
                         collision = True
+                        curr_t = pygame.time.get_ticks()
+                        if curr_t - last_damage_time > damage_cooldown:
+                            current_health -= collision_damage
+                            last_damage_time = curr_t
+                            accident_sound.play() 
+                            
+                            # --- SMOKE ON COLLISION ---
+                            for _ in range(8): # Bugso ng usok pagkabangga
+                                smoke_particles.append([[jeep_x, jeep_y], random.randint(4, 8), 200])
                         break
-                
-                if not collision:
-                    jeep_x, jeep_y = new_x, new_y
+                    
+                if not collision: jeep_x, jeep_y = new_x, new_y
 
             elif keys[pygame.K_s]:
                 # 1. TUNOG NG PAG-ATRAS
@@ -869,11 +934,14 @@ while running:
                 for wall in house_hitboxes:
                     if jeep_rect.colliderect(wall):
                         collision = True
+                        curr_t = pygame.time.get_ticks()
+                        if curr_t - last_damage_time > damage_cooldown:
+                            current_health -= collision_damage
+                            last_damage_time = curr_t
+                            accident_sound.play()
                         break
+                if not collision: jeep_x, jeep_y = new_x, new_y
                 
-                if not collision:
-                    jeep_x, jeep_y = new_x, new_y
-
         # --- STOP REVERSE SOUND ---
         # Pag binitawan ang S o naubusan ng gas, stop ang beep
         if not keys[pygame.K_s] or current_gas <= 0:
@@ -884,7 +952,8 @@ while running:
         # 4. IMAGE ROTATION UPDATE
         jeep_img_rotated = pygame.transform.rotate(jeep_img_original, jeep_angle)
         
-        if (keys[pygame.K_w] or keys[pygame.K_s]) and current_gas > 0:
+        # Titigil lang ang jeep kung may gas PA at hindi pa sira (health > 0)
+        if (keys[pygame.K_w] or keys[pygame.K_s]) and current_gas > 0 and current_health > 0:
             #FOR SMOKE
             radians = math.radians(jeep_angle)
             offset = 40 
@@ -1247,8 +1316,16 @@ while running:
             bg_h = int(height * zoom_factor)
             scaled_bg = pygame.transform.scale(route_caldag_img, (bg_w, bg_h))
             
-            bg_draw_x = -cam_x * zoom_factor
-            bg_draw_y = -cam_y * zoom_factor
+            # --- SHAKE CALCULATION ---
+            s_offset_x = 0
+            s_offset_y = 0
+            # Shake effect kapag bagong bangga (loob ng 150 milliseconds)
+            if pygame.time.get_ticks() - last_damage_time < 150:
+                s_offset_x = random.randint(-6, 6)
+                s_offset_y = random.randint(-6, 6)
+
+            bg_draw_x = (-cam_x * zoom_factor) + s_offset_x
+            bg_draw_y = (-cam_y * zoom_factor) + s_offset_y
             screen.blit(scaled_bg, (bg_draw_x, bg_draw_y))
         
         # --- DEBUG DRAWING NG MGA BAHAY ---
@@ -1264,16 +1341,87 @@ while running:
                     screen.blit(debug_surf, (draw_x, draw_y))
                     pygame.draw.rect(screen, (255, 0, 0), (draw_x, draw_y, draw_w, draw_h), 2)
             
-            # 3. DRAW USOK
-            for particle in smoke_particles:
-                p_draw_x = (particle[0][0] - cam_x) * zoom_factor
-                p_draw_y = (particle[0][1] - cam_y) * zoom_factor
-                p_radius = int(particle[1] * zoom_factor)
-                
-                smoke_surf = pygame.Surface((p_radius*2, p_radius*2), pygame.SRCALPHA)
-                pygame.draw.circle(smoke_surf, (120, 120, 120, particle[2]), (p_radius, p_radius), p_radius)
-                screen.blit(smoke_surf, (p_draw_x - p_radius, p_draw_y - p_radius))
+            # ------------------------------------------------------
+            # 1. JEEP DEFINITION & DRAWING (MUNA)
+            # ------------------------------------------------------
+            # DITO NATIN GAGAWIN YUNG VARIABLE NA 'jeep_scaled' PARA HINDI NA MAG-ERROR
+            jeep_scaled = pygame.transform.rotozoom(jeep_img_original, jeep_angle, zoom_factor)
+            
+            # Screen position ng jeep
+            jeep_screen_x = (jeep_x - cam_x) * zoom_factor
+            jeep_screen_y = (jeep_y - cam_y) * zoom_factor
+            
+            # --- ENGINE SHAKE CALCULATION ---
+            engine_shake_x = 0
+            engine_shake_y = 0
+            if engine_on:
+                if not idle_playing:
+                    engine_idle_sound.play(-1)
+                    idle_playing = True
+                engine_shake_x = random.uniform(-0.7, 0.7)
+                engine_shake_y = random.uniform(-0.7, 0.7)
 
+            # Idagdag ang offset dito sa center
+            # --- ENGINE SHAKE CALCULATION ---
+            engine_shake_x = 0
+            engine_shake_y = 0
+            if engine_on:
+                if not idle_playing:
+                    engine_idle_sound.play(-1)
+                    idle_playing = True
+                # Subtle vibration
+                engine_shake_x = random.uniform(-2.0, 2.0)
+                engine_shake_y = random.uniform(-2.0, 2.0)
+                # Mas malakas na shake pag nagcha-charge ng boost
+                if ss_charging:
+                    engine_shake_x = random.uniform(-2.5, 2.5)
+                    engine_shake_y = random.uniform(-2.5, 2.5)
+
+            # Idagdag ang shake sa final rect position
+            rect = jeep_scaled.get_rect(center=(jeep_screen_x + s_offset_x + engine_shake_x, 
+                                               jeep_screen_y + s_offset_y + engine_shake_y))
+
+            # Drawing the Jeep based on SS/Boost state
+            if (ss_charging or ss_is_active) and engine_on:
+                glow_overlay = jeep_scaled.copy()
+                glow_color = (255, 255, 0) if not ss_is_active else (255, 150, 0)
+                glow_overlay.fill(glow_color, special_flags=pygame.BLEND_RGB_ADD)
+                glow_overlay.set_alpha(random.randint(60, 160))
+                
+                if ss_charging:
+                    rect.x += random.randint(-3, 3)
+                    rect.y += random.randint(-3, 3)
+                
+                screen.blit(jeep_scaled, rect)
+                screen.blit(glow_overlay, rect)
+            else:
+                screen.blit(jeep_scaled, rect)
+
+            # ------------------------------------------------------
+            # 2. DRAW USOK AT APOY (PAGKATAPOS NG JEEP - PARA NASA IBABAW)
+            # ------------------------------------------------------
+            for p in smoke_particles:
+                p_draw_x = (p[0][0] - cam_x) * zoom_factor
+                p_draw_y = (p[0][1] - cam_y) * zoom_factor
+                p_radius = int(p[1] * zoom_factor)
+                
+                is_fire = p[3] if len(p) > 3 else False
+                
+                if is_fire:
+                    color = p[4] if len(p) > 4 else (255, 100, 0)
+                    p[0][1] -= 0.7  # Rising effect paitaas
+                else:
+                    color = (120, 120, 120)
+                    p[0][1] -= 0.3
+
+                # Surface para sa bawat particle
+                s_surf = pygame.Surface((p_radius*2, p_radius*2), pygame.SRCALPHA)
+                pygame.draw.circle(s_surf, (*color, p[2]), (p_radius, p_radius), p_radius)
+                
+                if is_fire:
+                    screen.blit(s_surf, (p_draw_x - p_radius, p_draw_y - p_radius), special_flags=pygame.BLEND_RGBA_ADD)
+                else:
+                    screen.blit(s_surf, (p_draw_x - p_radius, p_draw_y - p_radius))
             
             # --- DRAW PASSENGERS ON MAP ---
             for p in passengers_on_map:
@@ -1295,12 +1443,26 @@ while running:
             jeep_screen_x = (jeep_x - cam_x) * zoom_factor
             jeep_screen_y = (jeep_y - cam_y) * zoom_factor
             
+            # --- ENGINE SHAKE CALCULATION ---
+            engine_shake_x = 0
+            engine_shake_y = 0
+            if engine_on:
+                if not idle_playing:
+                    engine_idle_sound.play(-1)
+                    idle_playing = True
+                engine_shake_x = random.uniform(-0.8, 0.8)
+                engine_shake_y = random.uniform(-0.8, 0.8)
+
+            # Idagdag ang engine_shake sa center calculation
+            rect = jeep_scaled.get_rect(center=(jeep_screen_x + s_offset_x + engine_shake_x, 
+                                               jeep_screen_y + s_offset_y + engine_shake_y))
+            
             rect = jeep_scaled.get_rect(center=(jeep_screen_x, jeep_screen_y))
             
             # ======================================================
             # S U P E R  S A I Y A N  A U R A  (GLOW EFFECT)
             # ======================================================
-            if ss_charging or ss_is_active:
+            if (ss_charging or ss_is_active) and engine_on:
                 aura_alpha = random.randint(100, 200) 
                 
                 if ss_is_active:
@@ -1324,7 +1486,7 @@ while running:
             # ======================================================
             # J E E P  G L O W  &  S H A K E
             # ======================================================
-            if ss_charging or ss_is_active:
+            if (ss_charging or ss_is_active) and engine_on:
                 glow_overlay = jeep_scaled.copy()
                 glow_color = (255, 255, 0) if not ss_is_active else (255, 150, 0)
                 glow_overlay.fill(glow_color, special_flags=pygame.BLEND_RGB_ADD)
@@ -1342,7 +1504,7 @@ while running:
             # ======================================================
             # DRAW BOOST CHARGE BAR (ABOVE JEEP)
             # ======================================================
-            if ss_charging or ss_is_active or ss_charge_power > 0:
+            if (ss_charging or ss_is_active or ss_charge_power > 0) and engine_on:
                 bar_w = int(40 * zoom_factor)
                 bar_h = int(5 * zoom_factor)
                 bar_x = jeep_screen_x - (bar_w // 2)
@@ -1487,20 +1649,104 @@ while running:
             text_y = box_y + (box_height // 2) - (time_surf.get_height() // 2)
             screen.blit(time_surf, (text_x, text_y))
             
-            # GAS BAR
-            gas_bar_w = 150
-            gas_bar_h = 20
-            gas_x = 20
-            gas_y = height - 40 
-            pygame.draw.rect(screen, (30, 30, 30), (gas_x, gas_y, gas_bar_w, gas_bar_h))
-            pygame.draw.rect(screen, (200, 200, 200), (gas_x, gas_y, gas_bar_w, gas_bar_h), 2)
-            fill_w = int((current_gas / max_gas) * (gas_bar_w - 4))
-            bar_color = (0, 255, 0) if current_gas > 25 else (255, 0, 0)
-            if current_gas > 0:
-                pygame.draw.rect(screen, bar_color, (gas_x + 2, gas_y + 2, fill_w, gas_bar_h - 4))
-            gas_txt_surf = small_font.render(f"FUEL: {int(current_gas)}%", True, (255, 255, 255))
-            screen.blit(gas_txt_surf, (gas_x + 5, gas_y - 18))
+            # # ------------------------------------------------------
+            # # DITO MO I-PASTE (ENGINE INDICATOR)
+            # # ------------------------------------------------------
+            # eng_col = (0, 255, 0) if engine_on else (255, 0, 0)
+            # if is_starting: eng_col = (255, 255, 0)
+            # eng_txt = "ENGINE: ON" if engine_on else "ENGINE: OFF"
+            # if is_starting: eng_txt = "STARTING..."
+            
+            # eng_surf = small_font.render(eng_txt, True, eng_col)
+            # screen.blit(eng_surf, (gas_x, gas_y - 35)) 
 
+            # # # --- GAS & CONDITION BARS WITH PERCENTAGE ---
+            # # bar_w, bar_h = 130, 18
+            
+            # # --- Fuel Bar ---
+            # gas_x, gas_y = 25, height - 35
+            
+            # # --- GAS & CONDITION BARS WITH PERCENTAGE ---
+            # bar_w, bar_h = 130, 18
+            
+            # # 1. I-define muna ang Gas positions (DAPAT NASA ITAAS ITO)
+            # gas_x, gas_y = 25, height - 35
+            # bar_w, bar_h = 130, 18
+
+            # --- UI MEASUREMENTS ---
+            gas_x, gas_y = 25, height - 35
+            bar_w, bar_h = 130, 18
+
+            # --- ENGINE INDICATOR ---
+            eng_col = (0, 255, 0) if engine_on else (255, 0, 0)
+            if is_starting: eng_col = (255, 255, 0)
+            eng_txt = "ENGINE: ON" if engine_on else "ENGINE: OFF"
+            if is_starting: eng_txt = "STARTING..."
+            
+            eng_surf = small_font.render(eng_txt, True, eng_col)
+            screen.blit(eng_surf, (gas_x, gas_y - 35)) 
+
+            # --- FUEL BAR DRAWING ---
+            pygame.draw.rect(screen, (30, 30, 30), (gas_x, gas_y, bar_w, bar_h))
+            fill_g = int((current_gas / max_gas) * (bar_w - 4))
+            pygame.draw.rect(screen, (0, 255, 0) if current_gas > 25 else (255, 0, 0), (gas_x + 2, gas_y + 2, max(0, fill_g), bar_h - 4))
+            
+            gas_txt = small_font.render(f"FUEL: {int(current_gas)}%", True, (255, 255, 255))
+            screen.blit(gas_txt, (gas_x, gas_y - 18))
+            
+            # 2. Ngayon, pwede mo na gamitin sa Engine Indicator
+            # --- ENGINE INDICATOR ---
+            eng_col = (0, 255, 0) if engine_on else (255, 0, 0)
+            if is_starting: eng_col = (255, 255, 0)
+            eng_txt = "ENGINE: ON" if engine_on else "ENGINE: OFF"
+            if is_starting: eng_txt = "STARTING..."
+            
+            eng_surf = small_font.render(eng_txt, True, eng_col)
+            screen.blit(eng_surf, (gas_x, gas_y - 35)) 
+
+            # 3. Drawing ng Fuel Bar (Existing code mo)
+            pygame.draw.rect(screen, (30, 30, 30), (gas_x, gas_y, bar_w, bar_h))
+            fill_g = int((current_gas / max_gas) * (bar_w - 4))
+            pygame.draw.rect(screen, (0, 255, 0) if current_gas > 25 else (255, 0, 0), (gas_x + 2, gas_y + 2, max(0, fill_g), bar_h - 4))
+            
+            gas_txt = small_font.render(f"FUEL: {int(current_gas)}%", True, (255, 255, 255))
+            screen.blit(gas_txt, (gas_x, gas_y - 18))
+
+            # --- Condition Bar (Health) ---
+            health_x = gas_x + bar_w + 20
+            pygame.draw.rect(screen, (30, 30, 30), (health_x, gas_y, bar_w, bar_h))
+            
+            fill_h = int((max(0, current_health) / max_health) * (bar_w - 4))
+            h_col = (0, 255, 0) if current_health > 60 else (255, 255, 0) if current_health > 30 else (255, 0, 0)
+            
+            if current_health > 0:
+                pygame.draw.rect(screen, h_col, (health_x + 2, gas_y + 2, fill_h, bar_h - 4))
+            
+            # ======================================================
+            # W A R N I N G   S I G N S   (LOW FUEL & CRITICAL CONDITION)
+            # ======================================================
+            warn_font = pygame.font.Font("Fonts/pixelated fonts.ttf", 15)
+            warn_y = height - 70 # Pwesto sa taas ng bars
+            
+            # LOW FUEL WARNING
+            if current_gas <= 25:
+                # Mag-blink base sa oras (500ms intervals)
+                if (pygame.time.get_ticks() // 500) % 2 == 0:
+                    fuel_warn = warn_font.render("⚠ LOW FUEL!", True, (255, 0, 0))
+                    screen.blit(fuel_warn, (25, warn_y))
+            
+            # CRITICAL CONDITION WARNING
+            if current_health <= 25:
+                # Mag-blink din base sa oras
+                if (pygame.time.get_ticks() // 400) % 2 == 0:
+                    health_warn = warn_font.render("LOW HEALTH!", True, (255, 165, 0))
+                    # Itatabi natin sa kabila para hindi magpatong
+                    screen.blit(health_warn, (health_x, warn_y))
+            
+            # Balik natin ang Health Percentage text
+            health_txt = small_font.render(f"HEALTH: {int(max(0, current_health))}%", True, (255, 255, 255))
+            screen.blit(health_txt, (health_x, gas_y - 18))
+            
             if not is_jeep_moving and jeep_passengers_count > 0:
                 hint_txt_str = "[F] para pababain"
                 hint_x = pfp_display_x
@@ -1518,9 +1764,32 @@ while running:
                     knocking_sound.play()
                     para_sound_played = True
                 # ---------------------------
+                
+            # --- AUTO SMOKE & FIRE LOGIC (UPDATED) ---
+            if current_health < 50: 
+                if random.randint(0, 10) == 0:
+                    # Normal na usok (Gray) - False ang is_fire
+                    smoke_particles.append([[jeep_x, jeep_y], random.randint(3, 6), 150, False])
+            
+            if current_health < 25: 
+                if random.randint(0, 5) == 0:
+                    # Random position sa paligid ng jeep
+                    fire_x = jeep_x + random.randint(-12, 12)
+                    fire_y = jeep_y + random.randint(-12, 12)
+                    
+                    # Random "Fire" colors: Red, Orange, Yellow
+                    fire_color = random.choice([(255, 30, 0), (255, 120, 0), (255, 200, 0)])
+                    
+                    # FORMAT: [[x, y], radius, alpha, is_fire, color]
+                    smoke_particles.append([[fire_x, fire_y], random.randint(3, 8), 255, True, fire_color])
+                    
+            # --- PARA! INDICATOR (DAPAT NAKALABAS ITO SA HEALTH LOGIC) ---
+            if anyone_wants_to_stop:
+                if not para_sound_played:
+                    knocking_sound.play()
+                    para_sound_played = True
 
-                para_w = 120
-                para_h = 35
+                para_w, para_h = 120, 35
                 para_x = (width // 2) - (para_w // 2)
                 para_y = 110 
                 
@@ -1531,7 +1800,6 @@ while running:
                 para_txt_y = para_y + (para_h // 2) - (para_txt.get_height() // 2)
                 screen.blit(para_txt, (para_txt_x, para_txt_y))
             else:
-                # Kapag wala nang nagpapara, i-reset ang flag
                 para_sound_played = False
         # ======================================================
             # UI: QUOTA (TOP RIGHT - ABOVE RADIO)
@@ -1578,12 +1846,7 @@ while running:
                     pay_surf = medium_font.render(n[1], True, (255, 255, 0))
                     pay_surf.set_alpha(n[2])
                     screen.blit(pay_surf, (n[0][0], n[0][1]))
-        
-        
-        
-        
-        
-                  
+            
         if show_saved_panel:
             if fade_state == "in":
                 saved_alpha += fade_speed

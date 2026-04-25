@@ -33,10 +33,20 @@ engine_idle_sound = pygame.mixer.Sound("music/car sound.mp3")   # Tuloy-tuloy na
 engine_start_sound.set_volume(0.6)
 engine_idle_sound.set_volume(0.4)
 
+win_music = pygame.mixer.Sound("music/win music.mp3") 
+win_music.set_volume(0.6)
+win_music_playing = False # Flag para hindi mag-loop ang pag-play
+
+
 engine_on = False
 is_starting = False
 idle_playing = False
 engine_start_timer = 0
+
+lose_sound = pygame.mixer.Sound("music/lose sound.wav")
+lose_sound.set_volume(1.0)
+
+lose_music_playing = False
 
 accident_sound = pygame.mixer.Sound("music/Accident sound.mp3")
 accident_sound.set_volume(0.6)
@@ -265,7 +275,7 @@ ss_speed_multiplier = 3.0   # Gaano kabilis kapag nka-boost (2.5x original speed
 
 # GAS CONSUMPTION VALUES
 gas_consume_normal = 0.001   # Bawas gas kapag umaandar lang (mabagal lang natin)
-gas_consume_charging = 0.03  # Mabilis na bawas gas habang nagcha-charge (bago pa mag-boost)
+gas_consume_charging = 0.03  #0.03 # Mabilis na bawas gas habang nagcha-charge (bago pa mag-boost)
 gas_consume_boosting = 0.01  # Sobrang bilis na bawas gas habang nka-boost na
 
 # ======================================================
@@ -295,7 +305,7 @@ gas_consumption = 0.01  # Bilis ng bawas ng gas
 # ======================================================
 game_hour = 5
 game_minute = 30
-time_tick_speed = 1.5 # Bagalan natin para hindi masyadong mabilis ang lipas ng oras
+time_tick_speed = 2.0 # Bagalan natin para hindi masyadong mabilis ang lipas ng oras
 time_counter = 0
 
 # ======================================================
@@ -323,6 +333,12 @@ headlight_on = False
 # ======================================================
 night_alpha = 0  # 0 = Umaga (Maliwanag), 255 = Sobrang dilim
 
+# --- COMING SOON NOTIFICATION ---
+show_coming_soon = False
+coming_soon_timer = 0
+coming_soon_duration = 3000 # 2 seconds lang bago mawala
+cs_alpha = 0
+cs_y_offset = 0
 # ======================================================
 # H I T B O X  S E T U P (Invisible Walls)
 # ======================================================
@@ -365,7 +381,7 @@ username_panel = pygame.image.load("panel/username.png").convert_alpha()
 username_panel = pygame.transform.scale(username_panel, (430, 230))
 
 about_panel = pygame.image.load("panel/about.png").convert_alpha()
-about_panel = pygame.transform.scale(about_panel, (430, 270))
+about_panel = pygame.transform.scale(about_panel, (430, 290))
 
 exit_panel = pygame.image.load("panel/exit.png").convert_alpha()
 exit_panel = pygame.transform.scale(exit_panel, (430, 230))
@@ -481,9 +497,10 @@ last_drop_time = 0
 daily_quota = 300
 total_earnings = 0
 # --- FINAL SUMMARY CALCULATIONS ---
-gas_price_per_unit = 6.5      # Halaga ng bawat 1% na gas na nagamit (P6.50)
+gas_price_per_unit = 6.0      # Halaga ng bawat 1% na gas na nagamit (P6.50)
 show_win_panel = False        # Flag para lumabas ang summary panel
 show_lose_panel = False
+win_anim_counter = 0
 
 passenger_types = ["Regular", "Student", "Senior", "PWD"]
 stats = {"Regular": 0, "Student": 0, "Senior": 0, "PWD": 0}
@@ -596,7 +613,7 @@ while running:
         # ======================================================
         # G L O B A L   B O O S T   I N P U T (HOLD TO CHARGE)
         # ======================================================
-        if not loading and state == "caldag_screen" and current_gas > 0 and engine_on:
+        if not loading and state == "caldag_screen" and current_gas > 0 and engine_on and not (show_win_panel or show_lose_panel):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1: # Left Click
                     if not ss_is_active:
@@ -626,38 +643,85 @@ while running:
         if not loading:
             if event.type == pygame.KEYDOWN:
                 # --- CALDAG SCREEN KEYS (Moved here to avoid Attribute Error) ---
+                # --- CALDAG SCREEN KEYS ---
                 if state == "caldag_screen":
-                    if event.key == pygame.K_ESCAPE: state = "route"
-                    if event.key == pygame.K_e:
-                        headlight_on = not headlight_on
-                        click_sound.play()
+                    if event.key == pygame.K_ESCAPE: 
+                        # --- 1. STOP ALL SOUNDS ---
+                        start_jeep_radio(0) 
+                        engine_idle_sound.stop()
+                        reverse_sound.stop()
+                        powerup_sound.stop()
+                        speedup_sound.stop()
+                        idle_playing = False
+                        reverse_playing = False
+                        music_started = False # Para bumalik ang main menu music
                         
-                    if event.key == pygame.K_r:
-                        if not engine_on and not is_starting:
-                            is_starting = True
-                            engine_start_sound.play()
-                            engine_start_timer = pygame.time.get_ticks() # Kunin ang oras kung kailan pinindot
-                        elif engine_on:
-                            engine_on = False
-                            engine_idle_sound.stop()
-                            idle_playing = False
-                            click_sound.play()
+                        # --- 2. RESET GAMEPLAY VARIABLES ---
+                        current_gas = 100
+                        current_health = 100
+                        total_earnings = 0
+                        jeep_passengers_count = 0
+                        stats = {"Regular": 0, "Student": 0, "Senior": 0, "PWD": 0}
+                        
+                        # --- 3. RESET POSITION & PHYSICS ---
+                        jeep_x = width // 2 
+                        jeep_y = height - 150
+                        jeep_angle = 0
+                        jeep_speed = jeep_speed_original
+                        engine_on = False
+                        is_starting = False
+                        
+                        # --- 4. RESET TIME & SYSTEMS ---
+                        game_hour = 5
+                        game_minute = 30
+                        time_counter = 0
+                        rush_status = "NORMAL"
+                        is_rush_hour = False
+                        night_alpha = 0
+                        headlight_on = False
+                        
+                        # --- 5. CLEAN UP OBJECTS ---
+                        smoke_particles = []
+                        horn_waves = []
+                        payment_notifs = []
+                        # I-respawn ang mga tao sa random locations
+                        passengers_on_map = [Passenger(random.randint(100, 750), random.randint(100, 550)) for _ in range(15)]
+                        
+                        # --- 6. SWITCH STATE ---
+                        state = "route"
+                        print("Game Reset and Back to Route Selection")
 
-                            # --- DAGDAG MO ITONG MGA LINES NA ITO ---
-                            ss_charging = False
-                            ss_charge_power = 0
-                            powerup_sound.stop()
-                            charge_playing = False
-                            # ----------------------------------------
+                    # 2. Lahat ng ibang keys (E, R, Radio), i-wrap natin dito:
+                    # Check kung WALA pang panel na nakasulpot
+                    if not (show_win_panel or show_lose_panel):
+                        if event.key == pygame.K_e:
+                            headlight_on = not headlight_on
+                            click_sound.play()
                             
-                    if event.key == pygame.K_RIGHT:
-                        button_sound.play()
-                        current_music_index = (current_music_index + 1) % len(playlist)
-                        start_jeep_radio(current_music_index)
-                    if event.key == pygame.K_LEFT:
-                        button_sound.play()
-                        current_music_index = (current_music_index - 1) % len(playlist)
-                        start_jeep_radio(current_music_index)
+                        if event.key == pygame.K_r:
+                            if not engine_on and not is_starting:
+                                is_starting = True
+                                engine_start_sound.play()
+                                engine_start_timer = pygame.time.get_ticks() 
+                            elif engine_on:
+                                engine_on = False
+                                engine_idle_sound.stop()
+                                idle_playing = False
+                                click_sound.play()
+                                ss_charging = False
+                                ss_charge_power = 0
+                                powerup_sound.stop()
+                                charge_playing = False
+                                
+                        if event.key == pygame.K_RIGHT:
+                            button_sound.play()
+                            current_music_index = (current_music_index + 1) % len(playlist)
+                            start_jeep_radio(current_music_index)
+                            
+                        if event.key == pygame.K_LEFT:
+                            button_sound.play()
+                            current_music_index = (current_music_index - 1) % len(playlist)
+                            start_jeep_radio(current_music_index)
 
                 # --- USERNAME KEYS ---
                 if state == "username" and input_active:
@@ -690,6 +754,20 @@ while running:
                 
                 if state == "caldag_screen" and (show_win_panel or show_lose_panel):
                     button_sound.play()
+                    
+                    # 1. STOP LOSE MUSIC
+                    lose_sound.stop()
+                    win_music.stop()
+                    lose_music_playing = False
+                    
+                    music_started = False
+                    # --- ETO ANG "FORCE RESTART" NG MUSIC ---
+                    pygame.mixer.music.load("music/main bg music beep.mp3") # I-load ulit ang file
+                    pygame.mixer.music.set_volume(0.4) # Siguraduhin na may volume
+                    pygame.mixer.music.play(-1) # Patugtugin nang naka-loop
+                    # ----------------------------------------
+                    
+                    
                     # RESET ALL FOR NEXT DAY / RETRY
                     total_earnings = 0
                     current_gas = 100
@@ -810,11 +888,15 @@ while running:
                     # --- SAN DAG CLICK ---
                     elif sandag_rect.collidepoint(event.pos):
                         button_sound.play()
+                        show_coming_soon = True
+                        coming_soon_timer = pygame.time.get_ticks()
                         print("Starting Route: SAN CARLOS - DAGUPAN")
 
                     # --- LIN DAG CLICK ---
                     elif lindag_rect.collidepoint(event.pos):
                         button_sound.play()
+                        show_coming_soon = True
+                        coming_soon_timer = pygame.time.get_ticks() # Simulan ang timer
                         print("Starting Route: LINGAYEN - DAGUPAN")
 
     # ==========================================
@@ -839,7 +921,8 @@ while running:
     # ==========================================
     # U N I V E R S A L  H O R N  C O N T R O L
     # ==========================================
-    if not loading and (state == "menu" or state == "caldag_screen"):
+    # Para hindi maingay ang busina pag nanalo/natalo na
+    if not loading and (state == "menu" or (state == "caldag_screen" and not (show_win_panel or show_lose_panel))):
         keys = pygame.key.get_pressed()
         
         if keys[pygame.K_SPACE]:
@@ -866,270 +949,285 @@ while running:
         keys = pygame.key.get_pressed()
         radians = math.radians(jeep_angle) 
 
+        
+        game_active = not (show_win_panel or show_lose_panel)
+        
+        if game_active:
         # --- STEERING (A at D) ---
-        if keys[pygame.K_a]:
-            jeep_angle += rotation_speed
-        if keys[pygame.K_d]:
-            jeep_angle -= rotation_speed
+            if keys[pygame.K_a]:
+                jeep_angle += rotation_speed
+            if keys[pygame.K_d]:
+                jeep_angle -= rotation_speed
 
-        # --- PASSENGER CORE LOGIC ---
-        is_jeep_moving = keys[pygame.K_w] or keys[pygame.K_s]
-        jeep_vec = pygame.Vector2(jeep_x, jeep_y)
-        
-        # ======================================================
-        # B O O S T   L O G I C   &   G A S   C O N S U M P T I O N
-        # ======================================================
-        current_consume_rate = 0 # variable para sa total bawas gas sa frame na ito
-
-        # 1. Habang nagmamaneho (Normal gas consumption)
-        # 1. Habang nagmamaneho (Normal gas consumption) - Check engine_on
-        if (keys[pygame.K_w] or keys[pygame.K_s]) and engine_on and not (show_win_panel or show_lose_panel):
-            current_consume_rate = gas_consume_normal
-
-        # 2. Habang nagcha-charge (MOUSE HOLD)
-        if ss_charging and not ss_is_active and current_gas > 0:
-            ss_charge_power += ss_charge_speed # Dagdag power
-            current_consume_rate = gas_consume_charging # Mas mabilis bawas gas
+            # --- PASSENGER CORE LOGIC ---
+            is_jeep_moving = keys[pygame.K_w] or keys[pygame.K_s]
+            jeep_vec = pygame.Vector2(jeep_x, jeep_y)
             
-            # Limit sa 100%
-            if ss_charge_power > 100: ss_charge_power = 100
-        # 3. Habang nka-boost (TURBO ACTIVE)
-        if ss_is_active:
-            current_consume_rate = gas_consume_boosting # Sobrang bilis bawas gas
-            
-            # --- START BOOST SOUND ---
-            if not boost_sound_playing:
-                speedup_sound.play(-1)
-                boost_sound_playing = True
-            
-            # Check timer para patayin ang boost
-            if pygame.time.get_ticks() - ss_boost_timer > ss_boost_duration:
-                ss_is_active = False
-                jeep_speed = jeep_speed_original # Balik sa normal speed
-                ss_charge_power = 0 # Reset charge
-                
-                # --- STOP BOOST SOUND ---
-                speedup_sound.stop()
-                boost_sound_playing = False
-                print("Boost ended.")
-        
-        # 4. APPLY GAS CONSUMPTION (Actual na bawas sa gas)
-        if current_consume_rate > 0 and engine_on:
-            current_gas -= current_consume_rate
-            if current_gas <= 0:
-                current_gas = 0
-                
-                # --- ETO YUNG DINAGDAG NATIN ---
-                if not show_win_panel:
-                    show_win_panel = True # Lalabas na ang panel pag 0 gas na
-                # ------------------------------
+            # ======================================================
+            # B O O S T   L O G I C   &   G A S   C O N S U M P T I O N
+            # ======================================================
+            current_consume_rate = 0 # variable para sa total bawas gas sa frame na ito
 
-                # --- STOP ALL SOUNDS PARA MALINIS ---
-                powerup_sound.stop()
-                speedup_sound.stop()
-                engine_idle_sound.stop() # Stop din natin idle sound
-                charge_playing = False
-                boost_sound_playing = False
-                idle_playing = False
+            # 1. Habang nagmamaneho (Normal gas consumption)
+            # 1. Habang nagmamaneho (Normal gas consumption) - Check engine_on
+            if (keys[pygame.K_w] or keys[pygame.K_s]) and engine_on and not (show_win_panel or show_lose_panel):
+                current_consume_rate = gas_consume_normal
+
+            # 2. Habang nagcha-charge (MOUSE HOLD)
+            if ss_charging and not ss_is_active and current_gas > 0:
+                ss_charge_power += ss_charge_speed # Dagdag power
+                current_consume_rate = gas_consume_charging # Mas mabilis bawas gas
                 
-                # Patayin ang boost kung naubusan ng gas
-                if ss_is_active:
+                # Limit sa 100%
+                if ss_charge_power > 100: ss_charge_power = 100
+            # 3. Habang nka-boost (TURBO ACTIVE)
+            if ss_is_active:
+                current_consume_rate = gas_consume_boosting # Sobrang bilis bawas gas
+                
+                # --- START BOOST SOUND ---
+                if not boost_sound_playing:
+                    speedup_sound.play(-1)
+                    boost_sound_playing = True
+                
+                # Check timer para patayin ang boost
+                if pygame.time.get_ticks() - ss_boost_timer > ss_boost_duration:
                     ss_is_active = False
-                    jeep_speed = jeep_speed_original
-                ss_charging = False
-        
-        anyone_wants_to_stop = any(p.has_requested for p in passengers_on_map)
-
-        for p in passengers_on_map:
-            was_riding = p.is_riding
-            p.update(jeep_vec, is_jeep_moving, jeep_passengers_count)
-    
-            if p.is_riding and not was_riding:
-                if jeep_passengers_count < 18:
-                    jeep_passengers_count += 1
-                    # --- BAYAD LOGIC ---
-                    p_type = random.choice(passenger_types)
-                    fare = 11 if p_type in ["Student", "Senior", "PWD"] else 13
-                    total_earnings += fare
-                    stats[p_type] += 1
-                    # Floating notification setup
-                    payment_notifs.append([[jeep_screen_x, jeep_screen_y - 30], f"P{fare}", 255])
-                    money_sound.play() 
-                else:
-                    p.is_riding = False
-
-        # --- SEQUENTIAL DROP-OFF ---
-        current_time = pygame.time.get_ticks()
-        if keys[pygame.K_f] and not is_jeep_moving:
+                    jeep_speed = jeep_speed_original # Balik sa normal speed
+                    ss_charge_power = 0 # Reset charge
+                    
+                    # --- STOP BOOST SOUND ---
+                    speedup_sound.stop()
+                    boost_sound_playing = False
+                    print("Boost ended.")
             
+            # 4. APPLY GAS CONSUMPTION (Actual na bawas sa gas)
+            if current_consume_rate > 0 and engine_on:
+                current_gas -= current_consume_rate
+                if current_gas <= 0:
+                    current_gas = 0
+                    
+                    # --- ETO YUNG DINAGDAG NATIN ---
+                    if not show_win_panel:
+                        pygame.mixer.stop()
+                        show_win_panel = True # Lalabas na ang panel pag 0 gas na
+                        
+                    # ------------------------------
+
+                    # --- STOP ALL SOUNDS PARA MALINIS ---
+                    powerup_sound.stop()
+                    speedup_sound.stop()
+                    engine_idle_sound.stop() # Stop din natin idle sound
+                    charge_playing = False
+                    boost_sound_playing = False
+                    idle_playing = False
+                    
+                    # 3. I-off ang radyo (mahalaga ito para hindi bumalik ang tugtog)
+                    start_jeep_radio(0) 
+                    
+                    # 4. Patugtugin ang Win Music
+                    win_music.play(-1)
+                    show_win_panel = True
+                    
+                    # Patayin ang boost kung naubusan ng gas
+                    if ss_is_active:
+                        ss_is_active = False
+                        jeep_speed = jeep_speed_original
+                        ss_charging = False
+            
+            anyone_wants_to_stop = any(p.has_requested for p in passengers_on_map)
+
             for p in passengers_on_map:
-                if p.is_riding and p.has_requested:
-                    
-                    if current_time - last_drop_time > 1600:
+                was_riding = p.is_riding
+                p.update(jeep_vec, is_jeep_moving, jeep_passengers_count)
+        
+                if p.is_riding and not was_riding:
+                    if jeep_passengers_count < 18:
+                        jeep_passengers_count += 1
+                        # --- BAYAD LOGIC ---
+                        p_type = random.choice(passenger_types)
+                        fare = 11 if p_type in ["Student", "Senior", "PWD"] else 13
+                        total_earnings += fare
+                        stats[p_type] += 1
+                        # Floating notification setup
+                        payment_notifs.append([[jeep_screen_x, jeep_screen_y - 30], f"P{fare}", 255])
+                        money_sound.play() 
+                    else:
                         p.is_riding = False
-                        p.is_leaving = True
-                        p.has_requested = False
-                    
-                        p.pos = pygame.Vector2(jeep_x + random.randint(-15, 15), jeep_y + random.randint(-15, 15))
-                        jeep_passengers_count -= 1
-                        last_drop_time = current_time # Reset timer
-                        break 
-        
-        # --- MOVEMENT (W at S) ---
-        # --- MOVEMENT (W at S) ---
-        # --- MOVEMENT (W at S) WITH DAMAGE ---
-        # --- ENGINE START DELAY CHECK ---
-        # Pagkalipas ng 2000 milliseconds (2 seconds), mag-o-on ang makina
-        if is_starting:
-            if pygame.time.get_ticks() - engine_start_timer > 2000: 
-                engine_on = True
-                is_starting = False
 
-        # --- NEW MOVEMENT CONDITION ---
-        can_move = engine_on and current_gas > 0 and current_health > 0 and not show_win_panel
-
-        if (keys[pygame.K_w] or keys[pygame.K_s]) and can_move:
-            # --- LOW FUEL BEEP ---
-            if current_gas <= 15 and random.randint(0, 80) == 0:
-                reverse_sound.play()
+            # --- SEQUENTIAL DROP-OFF ---
+            current_time = pygame.time.get_ticks()
+            if keys[pygame.K_f] and not is_jeep_moving:
                 
-            if keys[pygame.K_w]:
-                new_x = jeep_x - jeep_speed * math.sin(radians)
-                new_y = jeep_y - jeep_speed * math.cos(radians)
-                jeep_rect = pygame.Rect(0, 0, 25, 45)
-                jeep_rect.center = (new_x, new_y)
-                
-                collision = False
-                for wall in house_hitboxes:
-                    if jeep_rect.colliderect(wall):
-                        collision = True
-                        curr_t = pygame.time.get_ticks()
-                        if curr_t - last_damage_time > damage_cooldown:
-                            current_health -= collision_damage
-                            last_damage_time = curr_t
-                            accident_sound.play() 
-                            
-                            # --- SMOKE ON COLLISION ---
-                            for _ in range(8): # Bugso ng usok pagkabangga
-                                smoke_particles.append([[jeep_x, jeep_y], random.randint(4, 8), 200])
-                        break
-                    
-                if not collision: jeep_x, jeep_y = new_x, new_y
-
-            elif keys[pygame.K_s]:
-                # 1. TUNOG NG PAG-ATRAS
-                if not reverse_playing:
-                    reverse_sound.play(-1)
-                    reverse_playing = True
-
-                # 2. ACTUAL NA PAG-GALAW (Siguraduhin na hindi ito naka-indent sa loob ng if not reverse_playing)
-                new_x = jeep_x + reverse_speed * math.sin(radians)
-                new_y = jeep_y + reverse_speed * math.cos(radians)
-                
-                jeep_rect = pygame.Rect(0, 0, 25, 45)
-                jeep_rect.center = (new_x, new_y)
-                
-                collision = False
-                for wall in house_hitboxes:
-                    if jeep_rect.colliderect(wall):
-                        collision = True
-                        curr_t = pygame.time.get_ticks()
-                        if curr_t - last_damage_time > damage_cooldown:
-                            current_health -= collision_damage
-                            last_damage_time = curr_t
-                            accident_sound.play()
-                        break
-                if not collision: jeep_x, jeep_y = new_x, new_y
-                
-        # --- STOP REVERSE SOUND ---
-        # Pag binitawan ang S o naubusan ng gas, stop ang beep
-        if not keys[pygame.K_s] or current_gas <= 0:
-            if reverse_playing:
-                reverse_sound.stop()
-                reverse_playing = False
-        
-        # 4. IMAGE ROTATION UPDATE
-        jeep_img_rotated = pygame.transform.rotate(jeep_img_original, jeep_angle)
-        
-        # Titigil lang ang jeep kung may gas PA at hindi pa sira (health > 0)
-        if (keys[pygame.K_w] or keys[pygame.K_s]) and current_gas > 0 and current_health > 0:
-            #FOR SMOKE
-            radians = math.radians(jeep_angle)
-            offset = 40 
-            smoke_x = jeep_x + offset * math.sin(radians)
-            smoke_y = jeep_y + offset * math.cos(radians)
-            smoke_particles.append([[smoke_x, smoke_y], random.randint(3, 8), 200])
-
-        # Update at Fade-out logic
-        for particle in smoke_particles[:]:
-            particle[2] -= 8  
-            particle[1] += 0.5 
-            if particle[2] <= 0:
-                smoke_particles.remove(particle) 
-                
-        cam_x = jeep_x - (width / 2) / zoom_factor
-        cam_y = jeep_y - (height / 2) / zoom_factor
-        
-        # --- TIME PROGRESSION LOGIC (DAGDAG LANG) ---
-        time_counter += time_tick_speed
-        if time_counter >= 60:
-            game_minute += 1
-            time_counter = 0
-        if game_minute >= 60:
-            game_hour += 1
-            game_minute = 0
-        if game_hour >= 20 and game_minute >= 30: # Stop sa 8:30 PM
-            game_hour = 20
-            game_minute = 30
+                for p in passengers_on_map:
+                    if p.is_riding and p.has_requested:
+                        
+                        if current_time - last_drop_time > 1600:
+                            p.is_riding = False
+                            p.is_leaving = True
+                            p.has_requested = False
+                        
+                            p.pos = pygame.Vector2(jeep_x + random.randint(-15, 15), jeep_y + random.randint(-15, 15))
+                            jeep_passengers_count -= 1
+                            last_drop_time = current_time # Reset timer
+                            break 
             
-            if not show_win_panel:
-                show_win_panel = True
+            # --- MOVEMENT (W at S) ---
+            # --- MOVEMENT (W at S) ---
+            # --- MOVEMENT (W at S) WITH DAMAGE ---
+            # --- ENGINE START DELAY CHECK ---
+            # Pagkalipas ng 2000 milliseconds (2 seconds), mag-o-on ang makina
+            if is_starting:
+                if pygame.time.get_ticks() - engine_start_timer > 2000: 
+                    engine_on = True
+                    is_starting = False
+
+            # --- NEW MOVEMENT CONDITION ---
+            can_move = engine_on and current_gas > 0 and current_health > 0 and not show_win_panel
+
+            if (keys[pygame.K_w] or keys[pygame.K_s]) and can_move:
+                # --- LOW FUEL BEEP ---
+                if current_gas <= 15 and random.randint(0, 80) == 0:
+                    reverse_sound.play()
+                    
+                if keys[pygame.K_w]:
+                    new_x = jeep_x - jeep_speed * math.sin(radians)
+                    new_y = jeep_y - jeep_speed * math.cos(radians)
+                    jeep_rect = pygame.Rect(0, 0, 25, 45)
+                    jeep_rect.center = (new_x, new_y)
+                    
+                    collision = False
+                    for wall in house_hitboxes:
+                        if jeep_rect.colliderect(wall):
+                            collision = True
+                            curr_t = pygame.time.get_ticks()
+                            if curr_t - last_damage_time > damage_cooldown:
+                                current_health -= collision_damage
+                                last_damage_time = curr_t
+                                accident_sound.play() 
+                                
+                                # --- SMOKE ON COLLISION ---
+                                for _ in range(8): # Bugso ng usok pagkabangga
+                                    smoke_particles.append([[jeep_x, jeep_y], random.randint(4, 8), 200])
+                            break
+                        
+                    if not collision: jeep_x, jeep_y = new_x, new_y
+
+                elif keys[pygame.K_s]:
+                    # 1. TUNOG NG PAG-ATRAS
+                    if not reverse_playing:
+                        reverse_sound.play(-1)
+                        reverse_playing = True
+
+                    # 2. ACTUAL NA PAG-GALAW (Siguraduhin na hindi ito naka-indent sa loob ng if not reverse_playing)
+                    new_x = jeep_x + reverse_speed * math.sin(radians)
+                    new_y = jeep_y + reverse_speed * math.cos(radians)
+                    
+                    jeep_rect = pygame.Rect(0, 0, 25, 45)
+                    jeep_rect.center = (new_x, new_y)
+                    
+                    collision = False
+                    for wall in house_hitboxes:
+                        if jeep_rect.colliderect(wall):
+                            collision = True
+                            curr_t = pygame.time.get_ticks()
+                            if curr_t - last_damage_time > damage_cooldown:
+                                current_health -= collision_damage
+                                last_damage_time = curr_t
+                                accident_sound.play()
+                            break
+                    if not collision: jeep_x, jeep_y = new_x, new_y
+                    
+            # --- STOP REVERSE SOUND ---
+            # Pag binitawan ang S o naubusan ng gas, stop ang beep
+            if not keys[pygame.K_s] or current_gas <= 0:
+                if reverse_playing:
+                    reverse_sound.stop()
+                    reverse_playing = False
+            
+            # 4. IMAGE ROTATION UPDATE
+            jeep_img_rotated = pygame.transform.rotate(jeep_img_original, jeep_angle)
+            
+            # Titigil lang ang jeep kung may gas PA at hindi pa sira (health > 0)
+            if (keys[pygame.K_w] or keys[pygame.K_s]) and current_gas > 0 and current_health > 0:
+                #FOR SMOKE
+                radians = math.radians(jeep_angle)
+                offset = 40 
+                smoke_x = jeep_x + offset * math.sin(radians)
+                smoke_y = jeep_y + offset * math.cos(radians)
+                smoke_particles.append([[smoke_x, smoke_y], random.randint(3, 8), 200])
+
+            # Update at Fade-out logic
+            for particle in smoke_particles[:]:
+                particle[2] -= 8  
+                particle[1] += 0.5 
+                if particle[2] <= 0:
+                    smoke_particles.remove(particle) 
+                    
+            cam_x = jeep_x - (width / 2) / zoom_factor
+            cam_y = jeep_y - (height / 2) / zoom_factor
+            
+            # --- TIME PROGRESSION LOGIC (DAGDAG LANG) ---
+            time_counter += time_tick_speed
+            if time_counter >= 60:
+                game_minute += 1
+                time_counter = 0
+            if game_minute >= 60:
+                game_hour += 1
+                game_minute = 0
+            if game_hour >= 20 and game_minute >= 30: # Stop sa 8:30 PM
+                game_hour = 20
+                game_minute = 30
                 
-        # --- DYNAMIC DARKNESS LOGIC (6 PM - 7 PM) ---
-        if game_hour == 18: # 6 PM
-            # Ang 60 minutes ay unti-unting mag-aadjust ng alpha mula 0 to 150
-            # (60 minutes * 2.5 = 150 alpha)
-            night_alpha = game_minute * 2.5 
-        elif game_hour >= 19: # 7 PM onwards
-            night_alpha = 200 # Max na dilim (para kita pa rin ang laro, huwag nating i-255)
-        else:
-            night_alpha = 0 # Umaga
-        
-        # --- RUSH HOUR TRACKER LOGIC ---
-        new_status = "NORMAL"
-        # 7:30 AM - 7:59 AM (Warning) | 3:30 PM - 3:59 PM (Warning)
-        if (game_hour == 7 and game_minute >= 30) or (game_hour == 15 and game_minute >= 30):
-            new_status = "WARNING"
-        # 8:00 AM - 10:00 AM (Active) | 4:00 PM - 7:00 PM (Active)
-        elif (8 <= game_hour < 10) or (16 <= game_hour < 19):
-            new_status = "ACTIVE"
+                if not show_win_panel:
+                    pygame.mixer.stop()
+                    win_music.play(-1)
+                    show_win_panel = True
+                    
+            # --- DYNAMIC DARKNESS LOGIC (6 PM - 7 PM) ---
+            if game_hour == 18: # 6 PM
+                # Ang 60 minutes ay unti-unting mag-aadjust ng alpha mula 0 to 150
+                # (60 minutes * 2.5 = 150 alpha)
+                night_alpha = game_minute * 2.5 
+            elif game_hour >= 19: # 7 PM onwards
+                night_alpha = 200 # Max na dilim (para kita pa rin ang laro, huwag nating i-255)
+            else:
+                night_alpha = 0 # Umaga
+            
+            # --- RUSH HOUR TRACKER LOGIC ---
+            new_status = "NORMAL"
+            # 7:30 AM - 7:59 AM (Warning) | 3:30 PM - 3:59 PM (Warning)
+            if (game_hour == 7 and game_minute >= 30) or (game_hour == 15 and game_minute >= 30):
+                new_status = "WARNING"
+            # 8:00 AM - 10:00 AM (Active) | 4:00 PM - 7:00 PM (Active)
+            elif (8 <= game_hour < 10) or (16 <= game_hour < 19):
+                new_status = "ACTIVE"
 
-        if new_status != rush_status:
-            rush_status = new_status
-            rush_notif_timer = pygame.time.get_ticks() 
-            if rush_status != "NORMAL":
-                button_sound.play()
+            if new_status != rush_status:
+                rush_status = new_status
+                rush_notif_timer = pygame.time.get_ticks() 
+                if rush_status != "NORMAL":
+                    button_sound.play()
 
-        # --- IMPROVED RUSH HOUR SPAWNING ---
-        if rush_status == "ACTIVE":
-            is_rush_hour = True
-            # Itaas natin sa 40 ang limit para siksikan talaga
-            if len(passengers_on_map) < 45: 
-                # Binabaan ko ang random (1, 100) para mas mabilis silang mag-appear
-                if random.randint(1, 100) == 1: 
-                    new_p = Passenger(random.randint(50, 800), random.randint(50, 600))
-                    # Siguraduhin na hindi sila sasakay agad, kailangan tumigil ka muna
-                    passengers_on_map.append(new_p)
-        else:
-            is_rush_hour = False
-            # Kapag normal hours, dahan-dahang ibalik sa 15 ang dami ng tao
-            if len(passengers_on_map) > 15:
-                if random.randint(1, 30) == 1: # Bilis ng pag-alis ng multo
-                    for p in passengers_on_map:
-                        # Alisin lang ang mga tambay (hindi sumasakay, hindi nakasakay)
-                        if not p.is_riding and not p.approaching and not p.is_leaving:
-                            passengers_on_map.remove(p)
-                            break # Isa-isa lang ang pag-alis para smooth
+            # --- IMPROVED RUSH HOUR SPAWNING ---
+            if rush_status == "ACTIVE":
+                is_rush_hour = True
+                # Itaas natin sa 40 ang limit para siksikan talaga
+                if len(passengers_on_map) < 55: 
+                    # Binabaan ko ang random (1, 100) para mas mabilis silang mag-appear
+                    if random.randint(1, 100) == 1: 
+                        new_p = Passenger(random.randint(50, 800), random.randint(50, 600))
+                        # Siguraduhin na hindi sila sasakay agad, kailangan tumigil ka muna
+                        passengers_on_map.append(new_p)
+            else:
+                is_rush_hour = False
+                # Kapag normal hours, dahan-dahang ibalik sa 15 ang dami ng tao
+                if len(passengers_on_map) > 15:
+                    if random.randint(1, 30) == 1: # Bilis ng pag-alis ng multo
+                        for p in passengers_on_map:
+                            # Alisin lang ang mga tambay (hindi sumasakay, hindi nakasakay)
+                            if not p.is_riding and not p.approaching and not p.is_leaving:
+                                passengers_on_map.remove(p)
+                                break # Isa-isa lang ang pag-alis para smooth
         
     screen.fill((0, 0, 0))
 
@@ -1425,7 +1523,48 @@ while running:
             else:
                 screen.blit(button_back_menu, backmenu_rect)
                 hovered_backmenu = False
-        
+
+            # --- COMING SOON TEXT ONLY WITH FLOAT & FADE ---
+            if show_coming_soon:
+                current_time = pygame.time.get_ticks()
+                elapsed = current_time - coming_soon_timer
+                
+                # 1. FADE LOGIC (Alpha: 0 to 255 then back to 0)
+                if elapsed < 500: # Fade In
+                    cs_alpha = int((elapsed / 500) * 255)
+                elif elapsed > (coming_soon_duration - 500): # Fade Out
+                    remaining = coming_soon_duration - elapsed
+                    cs_alpha = int((remaining / 500) * 255)
+                else:
+                    cs_alpha = 255
+                
+                # 2. FLOAT LOGIC (Aangat ang text habang tumatagal)
+                # Magsisimula sa 0, aakyat hanggang -40 pixels
+                cs_y_offset = int((elapsed / coming_soon_duration) * -40)
+
+                if elapsed < coming_soon_duration:
+                    # Render the text
+                    # Gumamit tayo ng matingkad na kulay (Yellow or Cyan) para lutang sa dark bg
+                    cs_text = custom_font.render("COMING SOON!", True, (255, 215, 0)) 
+                    
+                    # I-apply ang Alpha (Fade) sa text surface
+                    # Note: Kailangan convert_alpha() ang font surface or set_alpha
+                    cs_text.set_alpha(cs_alpha)
+                    
+                    # Positions: Center x, and specific y with offset
+                    text_x = (width // 2) - (cs_text.get_width() // 2)
+                    text_y = 550 + cs_y_offset # 550 ang starting point, mababawasan ng offset kaya aangat
+                    
+                    # Draw a simple shadow behind the text (Optional, para mas mabasa)
+                    shadow_surf = custom_font.render("COMING SOON!", True, (0, 0, 0))
+                    shadow_surf.set_alpha(int(cs_alpha * 0.5)) # Mas transparent na shadow
+                    screen.blit(shadow_surf, (text_x + 2, text_y + 2)) # Shadow offset
+                    
+                    # Draw the main fading/floating text
+                    screen.blit(cs_text, (text_x, text_y))
+                else:
+                    show_coming_soon = False
+            
         # ======================================================
             # C A L D A G   R O U T E   D I S P L A Y
             # ======================================================
@@ -1875,11 +2014,20 @@ while running:
                 current_health = 0
                 if not show_lose_panel:
                     show_lose_panel = True
-                    # I-stop ang mga ingay
+                    # 1. Patayin ang lahat ng ingay ng makina at radyo
                     engine_idle_sound.stop()
                     reverse_sound.stop()
+                    powerup_sound.stop()
+                    speedup_sound.stop()
+                    start_jeep_radio(0) # I-off ang radyo ng jeep
+                    
                     idle_playing = False
                     reverse_playing = False
+                    
+                    # 2. Patugtugin ang music ng pagkatalo
+                    if not lose_music_playing:
+                        lose_sound.play(-1) # -1 para tuloy-tuloy ang music habang nka-panel
+                        lose_music_playing = True
             
             if current_health > 0:
                 pygame.draw.rect(screen, h_col, (health_x + 2, gas_y + 2, fill_h, bar_h - 4))
@@ -1895,7 +2043,7 @@ while running:
                 # Mag-blink base sa oras (500ms intervals)
                 if (pygame.time.get_ticks() // 500) % 2 == 0:
                     fuel_warn = warn_font.render("⚠ LOW FUEL!", True, (255, 0, 0))
-                    screen.blit(fuel_warn, (25, warn_y))
+                    screen.blit(fuel_warn, (25, warn_y - 20))
             
             # CRITICAL CONDITION WARNING
             if current_health <= 25:
@@ -2052,7 +2200,10 @@ while running:
         # W I N / S U M M A R Y   P A N E L   (8:30 PM)
         # ======================================================
         if show_win_panel:
-            # 1. Background Blur
+            # 1. UPDATE ANIMATION COUNTER (Dito sa loob)
+            win_anim_counter += 0.25 
+
+            # 2. BACKGROUND & OVERLAY
             ret, frame = blurdbg_vid.read()
             if not ret:
                 blurdbg_vid.set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -2060,70 +2211,64 @@ while running:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame = cv2.resize(frame, (width, height))
             bg_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-            screen.blit(bg_surface, (0, 0))
-
-            # 2. DARK OVERLAY (Ito yung pampadilim)
-            # 150 ang alpha para medyo madilim talaga, adjust mo kung gusto mo mas dark
+            
+            # Screen Dance
+            sway_x = math.sin(win_anim_counter * 0.8) * 12
+            sway_y = math.cos(win_anim_counter * 0.8) * 8
+            screen.blit(bg_surface, (sway_x, sway_y))
+            
             overlay = pygame.Surface((width, height), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 150)) 
             screen.blit(overlay, (0, 0))
+
+            # 3. PANEL BOUNCE LOGIC
+            bounce_y = int(abs(math.sin(win_anim_counter)) * -15) 
             
-            # 2. Draw Win Panel Image (Naka-center na ngayon base sa bagong height)
-            panel_rect = win_panel.get_rect(center=(width // 2, height // 2))
+            # GAMITIN ANG ORIGINAL PANEL (Huwag i-scale para HD ang text)
+            panel_rect = win_panel.get_rect(center=(width // 2, (height // 2) + bounce_y))
             screen.blit(win_panel, panel_rect)
 
-            # 3. Calculation Logic
+            # 4. TEXT DISPLAY (IBINALIK SA DATI MONG COORDINATES)
             gas_used = max_gas - current_gas
             gas_expense = int(gas_used * gas_price_per_unit)
             take_home = total_earnings - daily_quota - gas_expense
+            
+            px, py = panel_rect.x, panel_rect.y
+            text_col = (0, 0, 0)
 
-            # 4. Text Display (Individually Adjustable Positions)
-            text_col = (0, 0, 0) 
+            # Eto na yung original positions mo, Joshua:
+            screen.blit(medium_font.render(f" {total_earnings}", True, text_col), (px + 300, py + 70))
+            screen.blit(medium_font.render(f" {daily_quota}", True, text_col), (px + 300, py + 117))
+            screen.blit(medium_font.render(f" {gas_expense}", True, text_col), (px + 320, py + 140))
             
-            # --- POSITIONS (Eto na Joshua, i-adjust mo ang 'val_x' ng bawat isa) ---
-            # Lakasan ang number (e.g., gawing 270) para umusog PAKANAN
-            # Bawasan ang number (e.g., gawing 250) para umusog PAKALIWA
-            
-            # 1. Kita Position
-            earn_x = panel_rect.x + 300  # Adjust mo ito pakanan/pakaliwa
-            earn_y = panel_rect.y + 70   # Adjust mo ito pataas/pababa
-            screen.blit(medium_font.render(f" {total_earnings}", True, text_col), (earn_x, earn_y))
-            
-            # 2. Quota Position
-            quota_x = panel_rect.x + 300 # Adjust mo ito pakanan/pakaliwa
-            quota_y = panel_rect.y + 117 # Adjust mo ito pataas/pababa
-            screen.blit(medium_font.render(f" {daily_quota}", True, text_col), (quota_x, quota_y))
-            
-            # 3. Gas Position
-            gas_x = panel_rect.x + 320   # Adjust mo ito pakanan/pakaliwa
-            gas_y = panel_rect.y + 140   # Adjust mo ito pataas/pababa
-            screen.blit(medium_font.render(f" {gas_expense}", True, text_col), (gas_x, gas_y))
-            
-            # 4. Subtotal Position (Yung blank space sa image)
             subtotal = total_earnings - daily_quota - gas_expense
-            sub_x = panel_rect.x + 300   # Adjust mo ito pakanan/pakaliwa
-            sub_y = panel_rect.y + 168   # Adjust mo ito pataas/pababa
-            screen.blit(medium_font.render(f" {subtotal}", True, text_col), (sub_x, sub_y))
+            screen.blit(medium_font.render(f" {subtotal}", True, text_col), (px + 300, py + 168))
             
-            # 5. Naiuwi sa Pamilya Position
-            home_x = panel_rect.x + 310  # Adjust mo ito pakanan/pakaliwa
-            home_y = panel_rect.y + 214  # Adjust mo ito pataas/pababa
             final_col = (20, 120, 20) if take_home > 0 else (180, 0, 0)
-            screen.blit(medium_font.render(f" {take_home}", True, final_col), (home_x, home_y))
+            screen.blit(medium_font.render(f" {take_home}", True, final_col), (px + 310, py + 214))
+
+            # 5. HINT TEXT
+            hint_f = pygame.font.SysFont("arial", 18, bold=True)
+            hint_s = hint_f.render("Press anywhere to back to main menu", True, (255, 255, 255))
+            screen.blit(hint_s, ((width - hint_s.get_width()) // 2, height - 40))
+
+            # 6. BEAT FLASH
+            if abs(math.sin(win_anim_counter)) > 0.9:
+                flash = pygame.Surface((width, height))
+                flash.set_alpha(40)
+                flash.fill((255, 255, 255))
+                screen.blit(flash, (0,0))
             
-            # 6. HINT TEXT (Press anywhere to back)
-            # Gagamit tayo ng Arial para malinaw katulad nung sa About
-            hint_font = pygame.font.SysFont("arial", 18, bold=True)
-            hint_surf = hint_font.render("Press anywhere to back to main menu", True, (255, 255, 255))
-            
-            # Nilagay ko sa height - 40 para nasa pinakababa
-            hint_x = (width - hint_surf.get_width()) // 2
-            hint_y = height - 40
-            screen.blit(hint_surf, (hint_x, hint_y))
-            
-            # DAGDAG NA PURE PANG-LOSE:
+            # ======================================================
+        # L O S E / G L I T C H   S Y S T E M
+        # ======================================================
         if show_lose_panel:
-            # 1. Background Blur
+            # 1. GENERATE SHAKE OFFSET
+            # Ito ang magpapakalog sa screen
+            shake_offset_x = random.randint(-10, 10)
+            shake_offset_y = random.randint(-10, 10)
+
+            # 2. Background Blur (Dating logic mo)
             ret, frame = blurdbg_vid.read()
             if not ret:
                 blurdbg_vid.set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -2131,21 +2276,40 @@ while running:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame = cv2.resize(frame, (width, height))
             bg_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-            screen.blit(bg_surface, (0, 0))
 
-            # 2. DARK OVERLAY
+            # 3. DRAW BACKGROUND WITH SHAKE
+            # Imbes na (0,0), gagamitin natin ang shake offset
+            screen.blit(bg_surface, (shake_offset_x, shake_offset_y))
+
+            # 4. GLITCH EFFECT (RGB SPLIT)
+            # Minsan (randomly), mag-do-draw tayo ng "ghost" image na kulay Pula o Cyan
+            if random.randint(0, 5) == 0:
+                glitch_surf = bg_surface.copy()
+                # Gawing mapula ang ghost image
+                glitch_surf.fill((255, 0, 0), special_flags=pygame.BLEND_RGB_MULT)
+                glitch_surf.set_alpha(120)
+                # I-offset ng kaunti para sa "ghosting" look
+                screen.blit(glitch_surf, (shake_offset_x + 15, shake_offset_y))
+
+            # 5. DARK OVERLAY
             overlay = pygame.Surface((width, height), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 180)) 
+            overlay.fill((20, 0, 0, 180)) # Nilagyan natin ng kaunting pula (20) ang dilim
             screen.blit(overlay, (0, 0))
             
-            # 3. Draw Lose Panel
-            l_rect = lose_panel.get_rect(center=(width // 2, height // 2))
+            # 6. DRAW LOSE PANEL WITH SHAKE
+            l_rect = lose_panel.get_rect(center=(width // 2 + shake_offset_x, height // 2 + shake_offset_y))
             screen.blit(lose_panel, l_rect)
 
-            # 4. Hint Text
+            # 7. ADD STATIC NOISE (Optional: para sa "TV glitch" feel)
+            if random.randint(0, 3) == 0:
+                for _ in range(20):
+                    noise_y = random.randint(0, height)
+                    pygame.draw.line(screen, (200, 200, 200), (0, noise_y), (width, noise_y), 1)
+
+            # 8. Hint Text (Press anywhere to back)
             hint_f = pygame.font.SysFont("arial", 18, bold=True)
-            hint_s = hint_f.render("Press anywhere to back to main menu", True, (255, 255, 255))
-            screen.blit(hint_s, ((width - hint_s.get_width()) // 2, height - 40))
+            hint_s = hint_f.render("Press anywhere to back to main menu", True, (255, 100, 100))
+            screen.blit(hint_s, ((width - hint_s.get_width()) // 2 + shake_offset_x, height - 40))
             
         pygame.display.update()
         clock.tick(60)

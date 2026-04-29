@@ -63,7 +63,7 @@ win_music.set_volume(0.6)
 lose_sound = pygame.mixer.Sound("music/lose sound.wav")
 lose_sound.set_volume(1.0)
 
-win_video_audio = pygame.mixer.Sound("music/win_video.mp3") # Siguraduhing tama ang filename mo ah!
+win_video_audio = pygame.mixer.Sound("music/win_video.mp3") 
 win_video_audio.set_volume(1.0)
 
 # --- Jeep Radio Tracks ---

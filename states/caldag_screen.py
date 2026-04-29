@@ -734,7 +734,6 @@ def run_caldag_frame(screen, keys):
             total_dashes = int(dist / (dash_length + dash_gap))
             
             for i in range(total_dashes):
-                # Gumagalaw na dashes papunta sa destination
                 offset = (pygame.time.get_ticks() / 15) % (dash_length + dash_gap)
                 
                 start_ratio = max(0, (i * (dash_length + dash_gap) + offset) / dist)
@@ -750,7 +749,7 @@ def run_caldag_frame(screen, keys):
         pulse = abs(math.sin(pygame.time.get_ticks() / 300)) * 10
         pygame.draw.circle(screen, (0, 255, 0), (int(dest_x), int(dest_y)), int(30 * zoom_factor + pulse), 3)
 
-        # 3. DRAW ARROW POINTING TO DESTINATION (Umiikot sa Jeep)
+        # 3. DRAW ARROW POINTING TO DESTINATION)
         angle_to_dest = math.atan2(dy, dx)
         arrow_dist = 70 * zoom_factor 
         arrow_x = jeep_screen_x + math.cos(angle_to_dest) * arrow_dist
@@ -762,7 +761,6 @@ def run_caldag_frame(screen, keys):
         pygame.draw.polygon(screen, (255, 215, 0), [p1, p2, p3]) 
         pygame.draw.polygon(screen, (0, 0, 0), [p1, p2, p3], 2)   
 
-        # 4. CHECK KUNG MALAPIT NA SA DESTINATION PARA PUMARA
         dist_to_dest = math.hypot(jeep.active_mission_dest.x - jeep.jeep_x, jeep.active_mission_dest.y - jeep.jeep_y)
         if dist_to_dest < 40 and not jeep.active_mission_passenger.has_requested:
             jeep.active_mission_passenger.has_requested = True
@@ -799,7 +797,6 @@ def run_caldag_frame(screen, keys):
         if jeep.headlight_on:
             rad_l = math.radians(jeep.jeep_angle)
             
-            # 1. Distansya mula sa center
             forward_dist = 35 * zoom_factor 
             side_dist = 11 * zoom_factor 
             
@@ -833,7 +830,7 @@ def run_caldag_frame(screen, keys):
     pfp_user_surf = assets.custom_font.render(ui.user_text, True, (255, 255, 255))
     screen.blit(pfp_user_surf, (assets.pfp_display_x + 65, assets.pfp_display_y + 19))
     
-    # --- PASSENGER PANEL (SA ILALIM NG PFP) ---
+    # --- PASSENGER PANEL ---
     pass_panel_y_pos = assets.pfp_display_y + assets.pfp_panel.get_height() + 5
     screen.blit(assets.passenger_panel, (assets.pfp_display_x, pass_panel_y_pos))
     
@@ -892,7 +889,7 @@ def run_caldag_frame(screen, keys):
     screen.blit(time_surf, (text_x, text_y))
     
     # ------------------------------------------------------
-    # DITO MO I-PASTE (ENGINE INDICATOR)
+    # (ENGINE INDICATOR)
     # ------------------------------------------------------
     gas_x, gas_y = 25, height - 35
     bar_w, bar_h = 130, 18
@@ -921,21 +918,19 @@ def run_caldag_frame(screen, keys):
     fill_h = int((max(0, jeep.current_health) / max_health) * (bar_w - 4))
     h_col = (0, 255, 0) if jeep.current_health > 60 else (255, 255, 0) if jeep.current_health > 30 else (255, 0, 0)
     
-    if jeep.current_health <= 0: # DAGDAG ITO
+    if jeep.current_health <= 0:
         jeep.current_health = 0
         if not ui.show_lose_panel:
             ui.show_lose_panel = True
-            # 1. Patayin ang lahat ng ingay ng makina at radyo
             assets.engine_idle_sound.stop()
             assets.reverse_sound.stop()
             assets.powerup_sound.stop()
             assets.speedup_sound.stop()
-            audio_manager.start_jeep_radio(0) # I-off ang radyo ng jeep
+            audio_manager.start_jeep_radio(0) 
             
             audio_manager.idle_playing = False
             audio_manager.reverse_playing = False
             
-            # 2. Patugtugin ang music ng pagkatalo
             if not audio_manager.lose_music_playing:
                 assets.lose_sound.play(-1) 
                 audio_manager.lose_music_playing = True
@@ -974,7 +969,7 @@ def run_caldag_frame(screen, keys):
         main_hint_surf = assets.medium_font.render(hint_txt_str, True, (255, 255, 255))
         screen.blit(main_hint_surf, (hint_x, hint_y))
 
-    # --- AUTO SMOKE & FIRE LOGIC (UPDATED) ---
+    # --- AUTO SMOKE & FIRE LOGIC ---
     if jeep.current_health < 50: 
         if random.randint(0, 10) == 0:
             effects.smoke_particles.append([[jeep.jeep_x, jeep.jeep_y], random.randint(3, 6), 150, False])
@@ -986,10 +981,9 @@ def run_caldag_frame(screen, keys):
             fire_color = random.choice([(255, 30, 0), (255, 120, 0), (255, 200, 0)])
             effects.smoke_particles.append([[fire_x, fire_y], random.randint(3, 8), 255, True, fire_color])
             
-    # --- PARA! INDICATOR (DAPAT NAKALABAS ITO SA HEALTH LOGIC) ---
+    # --- PARA! INDICATOR ---
     anyone_wants_to_stop = any(p.has_requested for p in passenger.passengers_on_map)
     if anyone_wants_to_stop:
-        # --- DITO MO I-PASTE ITO ---
         if not audio_manager.para_sound_played:
             assets.knocking_sound.play()
             audio_manager.para_sound_played = True
@@ -1041,8 +1035,8 @@ def run_caldag_frame(screen, keys):
     # FLOATING PAYMENT NOTIFS (ANIMATION)
     # ======================================================
     for n in ui.payment_notifs[:]:
-        n[0][1] -= 1 # Taas effect
-        n[2] -= 5    # Fade effect
+        n[0][1] -= 1 
+        n[2] -= 5    
         if n[2] <= 0: 
             ui.payment_notifs.remove(n)
         else:
@@ -1074,14 +1068,13 @@ def run_caldag_frame(screen, keys):
     # W I N / S U M M A R Y   P A N E L   (8:30 PM)
     # ======================================================
     if ui.show_win_panel:
-        # --- PHASE 1: VIDEO CUTSCENE ---
+        # --- VIDEO CUTSCENE ---
         if not ui.win_cutscene_finished:
             current_time = pygame.time.get_ticks()
 
-            # A. INITIALIZATION (Force Start - Mangyayari lang ito isang beses)
             if not getattr(ui, 'cutscene_started', False):
-                pygame.mixer.stop()  # Stop lahat ng ingay ng jeep/radyo
-                assets.win_video_audio.play() # Play ang kanta ng video
+                pygame.mixer.stop()  
+                assets.win_video_audio.play() 
                 
                 # REWIND: Siguraduhin na ang video ay nasa frame 0
                 assets.win_cutscene_vid.set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -1089,7 +1082,7 @@ def run_caldag_frame(screen, keys):
                 ui.cutscene_started = True
                 ui.last_vid_time = 0
                 ui.cutscene_surf = None
-                print("Cutscene Started!") # Debug info sa terminal
+                print("Cutscene Started!") 
 
             # B. VIDEO PLAYER (30 FPS)
             if current_time - ui.last_vid_time > 33:
@@ -1100,7 +1093,6 @@ def run_caldag_frame(screen, keys):
                     ui.cutscene_surf = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
                     ui.last_vid_time = current_time
                 else:
-                    # Kapag False na ang ret (tapos na video), dito lang magiging True ang finished
                     print("Video Finished. Switching to Panel.")
                     ui.win_cutscene_finished = True
                     assets.win_video_audio.stop()

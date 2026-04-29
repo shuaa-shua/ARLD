@@ -38,6 +38,7 @@ saved_panel_time = 0
 show_win_panel = False        
 show_lose_panel = False
 win_anim_counter = 0
+win_cutscene_finished = False
 
 # --- COMING SOON NOTIFICATION ---
 show_coming_soon = False

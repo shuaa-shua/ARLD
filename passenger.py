@@ -21,7 +21,8 @@ class Passenger:
         self.alpha = 255
         self.speed = 1.0
         self.message = ""
-
+        self.is_special = (random.randint(1, 100) <= 35)
+        
     def update(self, jeep_pos, jeep_is_moving, current_passengers):
         global is_rush_hour
         
@@ -36,14 +37,15 @@ class Passenger:
             
         if self.is_riding:
             # dito inaadjust ung bilis ng pag para ng passenger 3500+ mas matagal
-            if not self.has_requested and random.randint(1, 3500) == 1:
-                self.has_requested = True
+            if not self.is_special:
+                if not self.has_requested and random.randint(1, 3500) == 1:
+                    self.has_requested = True
             return
             
         dist = self.pos.distance_to(jeep_pos)
         
         # Kapag malapit ang jeep (150 pixels)
-        if dist < 150 and not self.is_riding and not self.is_leaving:
+        if dist < 70 and not self.is_riding and not self.is_leaving:
             if current_passengers >= 18: # Check kung puno
                 self.message = "Ay, puno na!"
                 self.approaching = False
@@ -69,7 +71,8 @@ class Passenger:
         self.has_requested = False
         self.alpha = 255
         self.pos = pygame.Vector2(random.randint(100, 750), random.randint(100, 550))
-
+        self.is_special = (random.randint(1, 100) <= 35) # I-roll ulit ang chance
+        
 # ======================================================
 # I N I T I A L   S P A W N I N G
 # ======================================================

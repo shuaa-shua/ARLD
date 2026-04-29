@@ -63,6 +63,9 @@ win_music.set_volume(0.6)
 lose_sound = pygame.mixer.Sound("music/lose sound.wav")
 lose_sound.set_volume(1.0)
 
+win_video_audio = pygame.mixer.Sound("music/win_video.mp3") # Siguraduhing tama ang filename mo ah!
+win_video_audio.set_volume(1.0)
+
 # --- Jeep Radio Tracks ---
 jeep_sound1 = pygame.mixer.Sound("music/bagyo.mp3")
 jeep_sound1.set_volume(0.5)
@@ -110,7 +113,7 @@ pygame.mixer.music.set_volume(0.4)
 # ======================================================
 video = cv2.VideoCapture("backgrounds/moving bg.mp4")
 blurdbg_vid = cv2.VideoCapture("backgrounds/blurd vid bg.mp4")
-
+win_cutscene_vid = cv2.VideoCapture("backgrounds/win_video.mp4")
 # ======================================================
 # B U T T O N  I M A G E S
 # ======================================================

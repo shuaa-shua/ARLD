@@ -85,6 +85,18 @@ gas_price_per_unit = 6.0       #Price ng gas, 6 pesos per 1 percent
 passenger_types = ["Regular", "Student", "Senior", "PWD"]
 
 # ======================================================
+# S P E C I A L  M I S S I O N  D E S T I N A T I O N S
+# ======================================================
+# 100% Safe Coordinates (Nasa gitna ng kalsada, iwas hitboxes)
+special_destinations = [
+    pygame.Vector2(115, 450),  # Lucao (Kaliwang kalsada, gitna ng Carael at School)
+    pygame.Vector2(200, 60),   # Dagupan City (Taas na kalsada, gitna ng Carael at Pugaro)
+    pygame.Vector2(300, 540),  # Nalsian / Banaoang (Babang kalsada, safe sa school at lasip)
+    pygame.Vector2(510, 350),  # Calasiao / Mayombo (Gitnang patayong kalsada)
+    pygame.Vector2(700, 120)   # Pantal papuntang kanan (Safe sa taas na mga bahay)
+]
+
+# ======================================================
 # U I   C O N S T A N T S  &  T I M E R S
 # ======================================================
 coming_soon_duration = 3000   

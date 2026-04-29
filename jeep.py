@@ -54,3 +54,8 @@ headlight_on = False
 # ======================================================
 jeep_passengers_count = 0
 last_drop_time = 0
+
+# --- SPECIAL MISSION TRACKER ---
+active_mission_dest = None        # Hawak yung Vector2 ng destination
+active_mission_passenger = None   # Sino yung pasaway na pasahero
+mission_notif_timer = 0

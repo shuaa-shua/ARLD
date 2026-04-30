@@ -59,7 +59,7 @@ pause_index = 0
 # ======================================================
 total_earnings = 0
 stats = {"Regular": 0, "Student": 0, "Senior": 0, "PWD": 0}
-payment_notifs = [] # Para sa floating "+11" or "+13"
+payment_notifs = [] 
 
 # ======================================================
 # T I M E   &   R U S H   H O U R   S T A T E

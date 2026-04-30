@@ -38,13 +38,11 @@ def update_camera(jeep_x, jeep_y):
 # ======================================================
 def get_shake_offset(last_damage_time):
     """
-    Nagbabalik ng offset x at y para umuga ang screen 
-    kapag kababangga lang ng jeep.
+    shake ito kapag bumangga ung jeep.
     """
     s_offset_x = 0
     s_offset_y = 0
     
-    # Shake effect kapag bagong bangga (loob ng 150 milliseconds)
     if pygame.time.get_ticks() - last_damage_time < 150:
         s_offset_x = random.randint(-6, 6)
         s_offset_y = random.randint(-6, 6)
@@ -53,9 +51,9 @@ def get_shake_offset(last_damage_time):
 
 def get_glitch_shake_offset():
     """
-    Para ito sa Lose Screen glitch effect (malakas na kalog).
+    Para ito sa Lose Screen glitch effect note by shua.
     """
-    shake_offset_x = random.randint(-10, 10)
-    shake_offset_y = random.randint(-10, 10)
+    shake_offset_x = random.randint(-3, 3)
+    shake_offset_y = random.randint(-3, 3)
     
     return shake_offset_x, shake_offset_y

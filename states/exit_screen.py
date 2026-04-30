@@ -24,7 +24,7 @@ def handle_exit_events(event, current_state, running):
             
         elif assets.exit_confirm_rect.collidepoint(event.pos):
             assets.button_sound.play()
-            is_running = False  # Patayin ang buong main loop
+            is_running = False  #
             
     return new_state, is_running
 

@@ -26,7 +26,7 @@ class Passenger:
     def update(self, jeep_pos, jeep_is_moving, current_passengers):
         global is_rush_hour
         
-        self.message = "" # Reset message kada frame
+        self.message = "" 
         
         if self.is_leaving:
             self.pos.y -= 0.8
@@ -36,7 +36,6 @@ class Passenger:
             return
             
         if self.is_riding:
-            # dito inaadjust ung bilis ng pag para ng passenger 3500+ mas matagal
             if not self.is_special:
                 if not self.has_requested and random.randint(1, 3500) == 1:
                     self.has_requested = True
@@ -71,10 +70,9 @@ class Passenger:
         self.has_requested = False
         self.alpha = 255
         self.pos = pygame.Vector2(random.randint(100, 750), random.randint(100, 550))
-        self.is_special = (random.randint(1, 100) <= 35) # I-roll ulit ang chance
+        self.is_special = (random.randint(1, 100) <= 35) 
         
 # ======================================================
 # I N I T I A L   S P A W N I N G
 # ======================================================
-# 3. Gawa ng 15 na tao sa map
 passengers_on_map = [Passenger(random.randint(100, 750), random.randint(100, 550)) for _ in range(15)]

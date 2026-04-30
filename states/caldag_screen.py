@@ -723,7 +723,7 @@ def run_caldag_frame(screen, keys):
         dest_x = (jeep.active_mission_dest.x - cam_x) * zoom_factor
         dest_y = (jeep.active_mission_dest.y - cam_y) * zoom_factor
 
-        # 1. DRAW GPS LINE (Animated Dashed Line)
+        # 1. DRAW GPS LINE 
         dx = dest_x - jeep_screen_x
         dy = dest_y - jeep_screen_y
         dist = math.hypot(dx, dy)
@@ -742,7 +742,7 @@ def run_caldag_frame(screen, keys):
                 start_pos = (jeep_screen_x + dx * start_ratio, jeep_screen_y + dy * start_ratio)
                 end_pos = (jeep_screen_x + dx * end_ratio, jeep_screen_y + dy * end_ratio)
                 
-                # Kulay Cyan (Blue-Green) na line
+               
                 pygame.draw.line(screen, (0, 255, 255), start_pos, end_pos, 3) 
 
         # 2. DRAW DROP-OFF CIRCLE SA MAP
@@ -772,11 +772,10 @@ def run_caldag_frame(screen, keys):
     # ======================================================
     # S P E C I A L  M I S S I O N  N O T I F I C A T I O N
     # ======================================================
-    # Magpapakita ang banner sa loob ng 4 seconds
     if jeep.active_mission_dest and pygame.time.get_ticks() - jeep.mission_notif_timer < 4000:
         notif_w, notif_h = 360, 60
         notif_x = (width // 2) - (notif_w // 2)
-        notif_y = 80 # Sa ilalim ng time/quota bar
+        notif_y = 80 
         
         # Transparent Blue Background
         banner_surf = pygame.Surface((notif_w, notif_h), pygame.SRCALPHA)
@@ -825,7 +824,7 @@ def run_caldag_frame(screen, keys):
             night_overlay.blit(combined_beams, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)     
         screen.blit(night_overlay, (0, 0))
 
-    # --- PFP PANEL (KALIWA) ---
+    # --- PFP PANEL ---
     screen.blit(assets.pfp_panel, (assets.pfp_display_x, assets.pfp_display_y))
     pfp_user_surf = assets.custom_font.render(ui.user_text, True, (255, 255, 255))
     screen.blit(pfp_user_surf, (assets.pfp_display_x + 65, assets.pfp_display_y + 19))
@@ -942,7 +941,7 @@ def run_caldag_frame(screen, keys):
     # W A R N I N G   S I G N S   (LOW FUEL & CRITICAL CONDITION)
     # ======================================================
     warn_font = pygame.font.Font("Fonts/pixelated fonts.ttf", 15)
-    warn_y = height - 70 # Pwesto sa taas ng bars
+    warn_y = height - 70 
     
     # LOW FUEL WARNING
     if jeep.current_gas <= 25:
@@ -959,16 +958,50 @@ def run_caldag_frame(screen, keys):
     health_txt = assets.small_font.render(f"HEALTH: {int(max(0, jeep.current_health))}%", True, (255, 255, 255))
     screen.blit(health_txt, (health_x, gas_y - 18))
     
+    # ======================================================
+    # H I N T S   S Y S T E M
+    # ======================================================
+    hint_base_y = pass_panel_y_pos + assets.passenger_panel.get_height() + 10
+    hint_offset = 0
+
+    # 1. DROP OFF HINT [F]
     if not is_jeep_moving and jeep.jeep_passengers_count > 0:
         hint_txt_str = "[F] para pababain"
         hint_x = assets.pfp_display_x
-        hint_y = pass_panel_y_pos + assets.passenger_panel.get_height() + 10
+        hint_y = hint_base_y + hint_offset
         for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
             border_surf = assets.medium_font.render(hint_txt_str, True, (0, 0, 0))
             screen.blit(border_surf, (hint_x + dx, hint_y + dy))
         main_hint_surf = assets.medium_font.render(hint_txt_str, True, (255, 255, 255))
         screen.blit(main_hint_surf, (hint_x, hint_y))
+        hint_offset += 25
 
+    # 2. START ENGINE HINT [R]
+    if not jeep.engine_on and not jeep.is_starting and jeep.current_gas > 0 and jeep.current_health > 0:
+        engine_hint_str = "[R] para i-on ang engine"
+        e_hint_x = assets.pfp_display_x
+        e_hint_y = hint_base_y + hint_offset
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            e_border_surf = assets.medium_font.render(engine_hint_str, True, (0, 0, 0))
+            screen.blit(e_border_surf, (e_hint_x + dx, e_hint_y + dy))
+        e_main_hint_surf = assets.medium_font.render(engine_hint_str, True, (255, 255, 0)) # Yellow
+        screen.blit(e_main_hint_surf, (e_hint_x, e_hint_y))
+        hint_offset += 25
+
+    # 3. HEADLIGHT HINT [E] 
+    if jeep.current_gas > 0 and jeep.current_health > 0 and ui.game_hour >= 18:
+        light_hint_str = "[E] para i-off ang ilaw" if jeep.headlight_on else "[E] para i-on ang ilaw"
+        l_hint_x = assets.pfp_display_x
+        l_hint_y = hint_base_y + hint_offset
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            l_border_surf = assets.medium_font.render(light_hint_str, True, (0, 0, 0))
+            screen.blit(l_border_surf, (l_hint_x + dx, l_hint_y + dy))
+        l_main_hint_surf = assets.medium_font.render(light_hint_str, True, (0, 255, 255)) # Cyan
+        screen.blit(l_main_hint_surf, (l_hint_x, l_hint_y))
+        hint_offset += 25
+
+    # --- AUTO SMOKE & FIRE LOGIC ---
+    
     # --- AUTO SMOKE & FIRE LOGIC ---
     if jeep.current_health < 50: 
         if random.randint(0, 10) == 0:

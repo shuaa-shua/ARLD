@@ -28,7 +28,7 @@ while running:
     dt = assets.clock.get_time()
     
     # ======================================================
-    # E V E N T   H A N D L I N G   ( Dispatcher )
+    # E V E N T   H A N D L I N G 
     # ======================================================
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -75,11 +75,10 @@ while running:
     # M A I N   S C R E E N S   ( D R A W I N G )
     # ======================================================
     else:
-        # Update holding logic para sa username screen
         if state == "username":
             states.username.update_username_state()
 
-        # --- UNIVERSAL HORN PARA SA MAIN MENU ---
+        # --- UNIVERSAL HORN FOR MAIN MENU ---
         keys = pygame.key.get_pressed()
         if state == "menu":
             if keys[pygame.K_SPACE]:
@@ -91,7 +90,6 @@ while running:
                     assets.jeep_horn_sound.stop()
                     audio_manager.horn_playing = False
         
-        # Start main menu music if not already playing and not in gameplay
         if not audio_manager.music_started and state != "caldag_screen":
             pygame.mixer.music.play(-1, fade_ms=2000)
             audio_manager.music_started = True

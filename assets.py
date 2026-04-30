@@ -5,12 +5,12 @@ from imports import *
 from settings import *
 
 # =========================================================
-# I N I T I A L I Z A T I O N  (Required before loading)
+# I N I T I A L I Z A T I O N
 # =========================================================
 pygame.init()
 pygame.mixer.init()
 
-# Setup the display here so images can use .convert() and .convert_alpha()
+
 screen = pygame.display.set_mode((width, height))
 pygame.display.set_caption("All Roads Lead to Dagupan (ARLD)")
 clock = pygame.time.Clock()

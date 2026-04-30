@@ -121,7 +121,7 @@ def draw_route(screen):
         current_time = pygame.time.get_ticks()
         elapsed = current_time - ui.coming_soon_timer
         
-        # 1. FADE LOGIC (Alpha: 0 to 255 then back to 0)
+        # 1. FADE LOGIC 
         if elapsed < 500: # Fade In
             ui.cs_alpha = int((elapsed / 500) * 255)
         elif elapsed > (coming_soon_duration - 500): # Fade Out
@@ -130,7 +130,7 @@ def draw_route(screen):
         else:
             ui.cs_alpha = 255
             
-        # 2. FLOAT LOGIC (Aangat ang text habang tumatagal)
+        # 2. FLOAT LOGIC 
         ui.cs_y_offset = int((elapsed / coming_soon_duration) * -40)
         
         if elapsed < coming_soon_duration:
@@ -140,7 +140,7 @@ def draw_route(screen):
             text_x = (width // 2) - (cs_text.get_width() // 2)
             text_y = 550 + ui.cs_y_offset 
             
-            # Draw a simple shadow behind the text (Optional, para mas mabasa)
+            # Draw a simple shadow behind the text 
             shadow_surf = assets.custom_font.render("NO EVENTS, COMING SOON!", True, (0, 0, 0))
             shadow_surf.set_alpha(int(ui.cs_alpha * 0.5)) 
             screen.blit(shadow_surf, (text_x + 2, text_y + 2)) 

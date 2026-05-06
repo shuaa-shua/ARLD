@@ -36,8 +36,7 @@ ss_boost_timer = 0          # Timer para sa duration
 # H E A L T H  S Y S T E M
 # ======================================================
 current_health = max_health
-last_damage_time = 0        # Para hindi maubos agad ang buhay sa isang dikit lang
-
+last_damage_time = 0        
 # ======================================================
 # G A S  S Y S T E M
 # ======================================================
@@ -56,6 +55,6 @@ jeep_passengers_count = 0
 last_drop_time = 0
 
 # --- SPECIAL MISSION TRACKER ---
-active_mission_dest = None        # Hawak yung Vector2 ng destination
-active_mission_passenger = None   # Sino yung pasaway na pasahero
+active_mission_dest = None       
+active_mission_passenger = None   
 mission_notif_timer = 0

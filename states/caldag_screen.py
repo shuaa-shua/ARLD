@@ -352,6 +352,7 @@ def run_caldag_frame(screen, keys):
                 jeep_rect = pygame.Rect(0, 0, 25, 45) #physical body
                 jeep_rect.center = (new_x, new_y) #to check if babangga
                 
+                #==== COLLISION W ====
                 collision = False
                 for wall in house_hitboxes:
                     if jeep_rect.colliderect(wall):
@@ -379,6 +380,7 @@ def run_caldag_frame(screen, keys):
                 jeep_rect = pygame.Rect(0, 0, 25, 45) #physical body
                 jeep_rect.center = (new_x, new_y) #check if babangga
                 
+                # ==== COLLISION S ====
                 collision = False
                 for wall in house_hitboxes:
                     if jeep_rect.colliderect(wall):
@@ -400,26 +402,27 @@ def run_caldag_frame(screen, keys):
 
         if (keys[pygame.K_w] or keys[pygame.K_s]) and jeep.current_gas > 0 and jeep.current_health > 0:
             #FOR SMOKE
-            offset = 40 
-            smoke_x = jeep.jeep_x + offset * math.sin(radians)
-            smoke_y = jeep.jeep_y + offset * math.cos(radians)
+            offset = 40 # 40 para sa likod lumabas usok
+            smoke_x = jeep.jeep_x + offset * math.sin(radians) # para ma calc kung nasan ang likod kahit saan lumiko jeep
+            smoke_y = jeep.jeep_y + offset * math.cos(radians)              #size of smoke  #opacity of smoke
             effects.smoke_particles.append([[smoke_x, smoke_y], random.randint(3, 8), 200])
             
         # --- SMOKE PARTICLE UPDATE ---
         for particle in effects.smoke_particles[:]:
-            particle[2] -= 8  
-            particle[1] += 0.5 
-            if particle[2] <= 0:
+            particle[2] -= 8 #fade out of smoke 
+            particle[1] += 0.5 #naiiwang usok gaano kahaba
+            if particle[2] <= 0: #kapag nag zero na inaalis na sa memory para hindi mag lag
                 effects.smoke_particles.remove(particle) 
                 
         # --- TIME PROGRESSION LOGIC ---
         ui.time_counter += time_tick_speed
-        if ui.time_counter >= 60:
-            ui.game_minute += 1
-            ui.time_counter = 0
+        if ui.time_counter >= 60: #minutes
+            ui.game_minute += 1 
+            ui.time_counter = 0 # back to zero
             
+            #convert sa oras
         if ui.game_minute >= 60:
-            ui.game_hour += 1
+            ui.game_hour += 1 #dag dag oras
             ui.game_minute = 0
             
         if ui.game_hour >= 20 and ui.game_minute >= 30: # Stop sa 8:30 PM
@@ -455,15 +458,15 @@ def run_caldag_frame(screen, keys):
         # --- RUSH HOUR SPAWNING ---
         if ui.rush_status == "ACTIVE":
             passenger.is_rush_hour = True
-            if len(passenger.passengers_on_map) < 55: 
-                if random.randint(1, 100) == 1: 
+            if len(passenger.passengers_on_map) < 55: # 55 na passenger sa map pag rush hour
+                if random.randint(1, 100) == 1: #1% chance 1 ang nabunot
                     new_p = passenger.Passenger(random.randint(50, 800), random.randint(50, 600))
-                    passenger.passengers_on_map.append(new_p)
+                    passenger.passengers_on_map.append(new_p) #append sinusulat niya kung saang place lalabas at kung anong passenger ang lalabas tapos mababsa ng rendering para ma draw sa mapa
         else:
             passenger.is_rush_hour = False
             # Kapag normal hours
             if len(passenger.passengers_on_map) > 15:
-                if random.randint(1, 30) == 1: 
+                if random.randint(1, 30) == 1: #para di biglaaan mawala mga passenger
                     for p in passenger.passengers_on_map:
                         if not p.is_riding and not p.approaching and not p.is_leaving:
                             passenger.passengers_on_map.remove(p)
@@ -472,11 +475,11 @@ def run_caldag_frame(screen, keys):
     # ======================================================
     # 2. CAMERA & SCREEN COORDINATES SETUP
     # ======================================================
-    cam_x, cam_y = camera.update_camera(jeep.jeep_x, jeep.jeep_y)
-    s_offset_x, s_offset_y = camera.get_shake_offset(jeep.last_damage_time)
+    cam_x, cam_y = camera.update_camera(jeep.jeep_x, jeep.jeep_y) #hinahanp at para tumutok ung camera sa jeep
+    s_offset_x, s_offset_y = camera.get_shake_offset(jeep.last_damage_time) #shake pag bumangga
     
-    jeep_screen_x = (jeep.jeep_x - cam_x) * zoom_factor
-    jeep_screen_y = (jeep.jeep_y - cam_y) * zoom_factor
+    jeep_screen_x = (jeep.jeep_x - cam_x) * zoom_factor #horizontally
+    jeep_screen_y = (jeep.jeep_y - cam_y) * zoom_factor #kung hanggang san ipapakita vetically
 
     # ======================================================
     # 3. DRAWING SECTION (Graphics, UI, Render)
@@ -489,7 +492,7 @@ def run_caldag_frame(screen, keys):
     scaled_bg = pygame.transform.scale(assets.route_caldag_img, (bg_w, bg_h))
     
     bg_draw_x = (-cam_x * zoom_factor) + s_offset_x
-    bg_draw_y = (-cam_y * zoom_factor) + s_offset_y
+    bg_draw_y = (-cam_y * zoom_factor) + s_offset_y #para pati background yumayanig pag bumangga
     screen.blit(scaled_bg, (bg_draw_x, bg_draw_y))
 
     # --- DRAW HITBOXES ---
@@ -504,11 +507,11 @@ def run_caldag_frame(screen, keys):
             #================================================================================================
             
             debug_surf = pygame.Surface((draw_w, draw_h), pygame.SRCALPHA)
-            debug_surf.fill((255, 0, 0, 100)) 
+            debug_surf.fill((255, 0, 0, 100)) #100 opacity dahil sa scralpha 
             screen.blit(debug_surf, (draw_x, draw_y))
             pygame.draw.rect(screen, (255, 0, 0), (draw_x, draw_y, draw_w, draw_h), 2)
 
-    # --- JEEP DEFINITION & DRAWING ---
+    # --- JEEP DEFINITION & DRAWING --- # ROTO (Rotation) # ZOOM (SCALING)
     jeep_scaled = pygame.transform.rotozoom(assets.jeep_img_original, jeep.jeep_angle, zoom_factor)
     
     jeep.engine_shake_x = 0
@@ -518,13 +521,13 @@ def run_caldag_frame(screen, keys):
             assets.engine_idle_sound.play(-1)
             audio_manager.idle_playing = True
             
-        jeep.engine_shake_x = random.uniform(-2.0, 2.0)
-        jeep.engine_shake_y = random.uniform(-2.0, 2.0)
+        jeep.engine_shake_x = random.uniform(-2.0, 2.0) #jeep shake pag umaandar
+        jeep.engine_shake_y = random.uniform(-2.0, 2.0) #engine shake
         
-        if jeep.ss_charging:
+        if jeep.ss_charging: #shake ng jeep pag charging
             jeep.engine_shake_x = random.uniform(-2.5, 2.5)
             jeep.engine_shake_y = random.uniform(-2.5, 2.5)
-            
+                                        #jeep pos,   jeep shake bangga,  engine shake
     rect = jeep_scaled.get_rect(center=(jeep_screen_x + s_offset_x + jeep.engine_shake_x, 
                                         jeep_screen_y + s_offset_y + jeep.engine_shake_y))
                                         
@@ -536,27 +539,27 @@ def run_caldag_frame(screen, keys):
         else:
             aura_color = (255, 255, 0, jeep.aura_alpha) 
         
-        for _ in range(random.randint(5, 10)):
-            offset_x = random.randint(int(-30 * zoom_factor), int(30 * zoom_factor))
+        for _ in range(random.randint(5, 10)): #random na 5-10 maliliit na bilog
+            offset_x = random.randint(int(-30 * zoom_factor), int(30 * zoom_factor)) #position ng maliliit na bilog
             offset_y = random.randint(int(-40 * zoom_factor), int(40 * zoom_factor))
             glow_radius = random.randint(2, 6)
-            glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf, aura_color, (glow_radius, glow_radius), glow_radius)
+            glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA) # 2 is the radius
+            pygame.draw.circle(glow_surf, aura_color, (glow_radius, glow_radius), glow_radius) #ginagawang circle
             screen.blit(glow_surf, (jeep_screen_x + offset_x, jeep_screen_y + offset_y))
             
         big_aura_radius = int(50 * zoom_factor)
         big_aura_surf = pygame.Surface((big_aura_radius * 2, big_aura_radius * 2), pygame.SRCALPHA)
-        pygame.draw.circle(big_aura_surf, (255, 200, 0, 50), (big_aura_radius, big_aura_radius), big_aura_radius)
+        pygame.draw.circle(big_aura_surf, (255, 200, 0, 50), (big_aura_radius, big_aura_radius), big_aura_radius) #2, 2 apat na quarters
         screen.blit(big_aura_surf, (jeep_screen_x - big_aura_radius, jeep_screen_y - big_aura_radius))
 
     # --- JEEP GLOW & SHAKE ---
     if (jeep.ss_charging or jeep.ss_is_active) and jeep.engine_on:
-        glow_overlay = jeep_scaled.copy()
+        glow_overlay = jeep_scaled.copy() #kinopy para bumalik sa dati ang kulay
         glow_color = (255, 255, 0) if not jeep.ss_is_active else (255, 150, 0)
-        glow_overlay.fill(glow_color, special_flags=pygame.BLEND_RGB_ADD)
-        glow_overlay.set_alpha(random.randint(60, 160))
+        glow_overlay.fill(glow_color, special_flags=pygame.BLEND_RGB_ADD) #specialflags - pinagsasama kulay. pinaghalo kulay ng orig jeep and copy
+        glow_overlay.set_alpha(random.randint(60, 160)) #random transparency
         
-        if jeep.ss_charging:
+        if jeep.ss_charging: #shake
             rect.x += random.randint(-3, 3)
             rect.y += random.randint(-3, 3)
         
@@ -567,18 +570,18 @@ def run_caldag_frame(screen, keys):
 
     # --- DRAW USOK AT APOY ---
     for p in effects.smoke_particles:
-        p_draw_x = (p[0][0] - cam_x) * zoom_factor
-        p_draw_y = (p[0][1] - cam_y) * zoom_factor
-        p_radius = int(p[1] * zoom_factor)
+        p_draw_x = (p[0][0] - cam_x) * zoom_factor #para sumunod cam, vertical, horizontal, at mag zoom in out din depends
+        p_draw_y = (p[0][1] - cam_y) * zoom_factor 
+        p_radius = int(p[1] * zoom_factor) #radius, gaano kalaki
         
         is_fire = p[3] if len(p) > 3 else False
         
         if is_fire:
-            color = p[4] if len(p) > 4 else (255, 100, 0)
-            p[0][1] -= 0.7  
+            color = p[4] if len(p) > 4 else (255, 100, 0) #color of the fire
+            p[0][1] -= 0.7 #bilis ng apoy baway frame, Taas / Baba  fade out pataas
         else:
             color = (120, 120, 120)
-            p[0][1] -= 0.3
+            p[0][1] -= 0.3 #taas baba lalabas ung particle #fade out pataas
             
         s_surf = pygame.Surface((p_radius*2, p_radius*2), pygame.SRCALPHA)
         pygame.draw.circle(s_surf, (*color, p[2]), (p_radius, p_radius), p_radius)
@@ -590,9 +593,9 @@ def run_caldag_frame(screen, keys):
 
     # --- DRAW PASSENGERS ON MAP ---
     for p in passenger.passengers_on_map:
-        if not p.is_riding and p.alpha > 0:
+        if not p.is_riding and p.alpha > 0: # fade out pag bumaba
             p_x = (p.pos.x - cam_x) * zoom_factor
-            p_y = (p.pos.y - cam_y) * zoom_factor
+            p_y = (p.pos.y - cam_y) * zoom_factor # para mag zoom din ang mga passenger
             
             p_surf = pygame.transform.scale(p.image, (int(25 * zoom_factor), int(25 * zoom_factor)))
             if p.is_leaving:
@@ -635,8 +638,8 @@ def run_caldag_frame(screen, keys):
 
     # --- WIFI DRAWING ---
     for wave in effects.horn_waves[:]:
-        wave[1] += 3   
-        wave[2] -= 15  
+        wave[1] += 3   # Bilis ng paglaki
+        wave[2] -= 15  # Bilis ng (Fadeout)
         if wave[2] <= 0:
             effects.horn_waves.remove(wave)
         else:
@@ -680,21 +683,21 @@ def run_caldag_frame(screen, keys):
         pygame.draw.circle(screen, (0, 255, 0), (int(dest_x), int(dest_y)), int(30 * zoom_factor + pulse), 3)
 
         # 3. DRAW ARROW 
-        angle_to_dest = math.atan2(dy, dx)
-        arrow_dist = 70 * zoom_factor 
-        arrow_x = jeep_screen_x + math.cos(angle_to_dest) * arrow_dist
-        arrow_y = jeep_screen_y + math.sin(angle_to_dest) * arrow_dist
+        # angle_to_dest = math.atan2(dy, dx)
+        # arrow_dist = 70 * zoom_factor 
+        # arrow_x = jeep_screen_x + math.cos(angle_to_dest) * arrow_dist
+        # arrow_y = jeep_screen_y + math.sin(angle_to_dest) * arrow_dist
         
-        p1 = (arrow_x + math.cos(angle_to_dest) * 15, arrow_y + math.sin(angle_to_dest) * 15)
-        p2 = (arrow_x + math.cos(angle_to_dest + 2.5) * 10, arrow_y + math.sin(angle_to_dest + 2.5) * 10)
-        p3 = (arrow_x + math.cos(angle_to_dest - 2.5) * 10, arrow_y + math.sin(angle_to_dest - 2.5) * 10)
-        pygame.draw.polygon(screen, (255, 215, 0), [p1, p2, p3]) 
-        pygame.draw.polygon(screen, (0, 0, 0), [p1, p2, p3], 2)   
+        # p1 = (arrow_x + math.cos(angle_to_dest) * 15, arrow_y + math.sin(angle_to_dest) * 15)
+        # p2 = (arrow_x + math.cos(angle_to_dest + 2.5) * 10, arrow_y + math.sin(angle_to_dest + 2.5) * 10)
+        # p3 = (arrow_x + math.cos(angle_to_dest - 2.5) * 10, arrow_y + math.sin(angle_to_dest - 2.5) * 10)
+        # pygame.draw.polygon(screen, (255, 215, 0), [p1, p2, p3]) 
+        # pygame.draw.polygon(screen, (0, 0, 0), [p1, p2, p3], 2)   
 
         dist_to_dest = math.hypot(jeep.active_mission_dest.x - jeep.jeep_x, jeep.active_mission_dest.y - jeep.jeep_y)
         if dist_to_dest < 40 and not jeep.active_mission_passenger.has_requested:
             jeep.active_mission_passenger.has_requested = True
-            jeep.active_mission_passenger.message = "Dito na lang po!"
+            # jeep.active_mission_passenger.message = "Dito na lang po!"
             if not audio_manager.para_sound_played:
                 assets.knocking_sound.play()
                 audio_manager.para_sound_played = True

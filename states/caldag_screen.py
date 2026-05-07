@@ -165,7 +165,8 @@ def handle_caldag_events(event, current_state):
     # C L I C K   E V E N T S
     # =========================
     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-        if ui.show_win_panel or ui.show_lose_panel:
+        # Titingnan na niya kung tapos na yung cutscene bago ka payagan mag-click pabalik sa menu
+        if (ui.show_win_panel and ui.win_cutscene_finished) or ui.show_lose_panel:
             assets.button_sound.play()
             new_state = reset_game_state("menu")
 
@@ -680,19 +681,7 @@ def run_caldag_frame(screen, keys):
 
         # 2. DRAW DROP-OFF CIRCLE
         pulse = abs(math.sin(pygame.time.get_ticks() / 300)) * 10
-        pygame.draw.circle(screen, (0, 255, 0), (int(dest_x), int(dest_y)), int(30 * zoom_factor + pulse), 3)
-
-        # 3. DRAW ARROW 
-        # angle_to_dest = math.atan2(dy, dx)
-        # arrow_dist = 70 * zoom_factor 
-        # arrow_x = jeep_screen_x + math.cos(angle_to_dest) * arrow_dist
-        # arrow_y = jeep_screen_y + math.sin(angle_to_dest) * arrow_dist
-        
-        # p1 = (arrow_x + math.cos(angle_to_dest) * 15, arrow_y + math.sin(angle_to_dest) * 15)
-        # p2 = (arrow_x + math.cos(angle_to_dest + 2.5) * 10, arrow_y + math.sin(angle_to_dest + 2.5) * 10)
-        # p3 = (arrow_x + math.cos(angle_to_dest - 2.5) * 10, arrow_y + math.sin(angle_to_dest - 2.5) * 10)
-        # pygame.draw.polygon(screen, (255, 215, 0), [p1, p2, p3]) 
-        # pygame.draw.polygon(screen, (0, 0, 0), [p1, p2, p3], 2)   
+        pygame.draw.circle(screen, (0, 255, 0), (int(dest_x), int(dest_y)), int(30 * zoom_factor + pulse), 3) 
 
         dist_to_dest = math.hypot(jeep.active_mission_dest.x - jeep.jeep_x, jeep.active_mission_dest.y - jeep.jeep_y)
         if dist_to_dest < 40 and not jeep.active_mission_passenger.has_requested:
@@ -728,10 +717,11 @@ def run_caldag_frame(screen, keys):
         if jeep.headlight_on:
             rad_l = math.radians(jeep.jeep_angle)
             
-            forward_dist = 35 * zoom_factor 
-            side_dist = 11 * zoom_factor 
+            forward_dist = 35 * zoom_factor # para mapunta sa bumber ang ilaw
+            side_dist = 11 * zoom_factor # gaano magkalayo ung ilaw sa bumper
             
-            light_positions = [
+            light_positions = [ # Kumukuha ng X at Y ng ilaw para sumunod sa harap at gilid (bumper)
+                                    # kahit anong rotate ng jeep, alam pa rin kung nasaan ang harap.
                 (jeep_screen_x - forward_dist * math.sin(rad_l) - side_dist * math.cos(rad_l),
                  jeep_screen_y - forward_dist * math.cos(rad_l) + side_dist * math.sin(rad_l)),
                 (jeep_screen_x - forward_dist * math.sin(rad_l) + side_dist * math.cos(rad_l),
@@ -741,7 +731,7 @@ def run_caldag_frame(screen, keys):
             
             for pos in light_positions:
                 for layer in range(6):
-                    beam_len = (180 + (layer * 20)) * zoom_factor 
+                    beam_len = (180 + (layer * 20)) * zoom_factor #size ng ilaw
                     spread = math.radians(15 + (layer * 5))
                     
                     p1 = pos
@@ -761,11 +751,11 @@ def run_caldag_frame(screen, keys):
     pfp_user_surf = assets.custom_font.render(ui.user_text, True, (255, 255, 255))
     screen.blit(pfp_user_surf, (assets.pfp_display_x + 65, assets.pfp_display_y + 19))
     
-    # --- PASSENGER PANEL ---
+    # ========================= PASSENGER PANEL ==========================
     pass_panel_y_pos = assets.pfp_display_y + assets.pfp_panel.get_height() + 5
     screen.blit(assets.passenger_panel, (assets.pfp_display_x, pass_panel_y_pos))
     
-    # --- JEEP RADIO PANEL ---
+    # ================= JEEP RADIO PANEL ===================
     radio_x = width - 180
     radio_y = 75
     radio_bg_rect = pygame.Rect(radio_x, radio_y, 160, 65)
@@ -1056,7 +1046,7 @@ def run_caldag_frame(screen, keys):
                 screen.fill((0, 0, 0))
                 
         else:
-            ui.win_anim_counter += 0.25 
+            
             ret, frame = assets.blurdbg_vid.read()
             if not ret:
                 assets.blurdbg_vid.set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -1066,20 +1056,18 @@ def run_caldag_frame(screen, keys):
                 frame = cv2.resize(frame, (width, height))
                 bg_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
             
-            sway_x = math.sin(ui.win_anim_counter * 0.8) * 12
-            sway_y = math.cos(ui.win_anim_counter * 0.8) * 8
-            screen.blit(bg_surface, (sway_x, sway_y))
+            
+            screen.blit(bg_surface, (0, 0))
             
             overlay = pygame.Surface((width, height), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 150)) 
             screen.blit(overlay, (0, 0))
             
-            bounce_y = int(abs(math.sin(ui.win_anim_counter)) * -15) 
-            panel_rect = assets.win_panel.get_rect(center=(width // 2, (height // 2) + bounce_y))
+            panel_rect = assets.win_panel.get_rect(center=(width // 2, height // 2))
             screen.blit(assets.win_panel, panel_rect)
             
             gas_used = max_gas - jeep.current_gas
-            gas_expense = int(gas_used * gas_price_per_unit)
+            gas_expense = int(gas_used * gas_price_per_unit) # FORMULA ===========
             take_home = ui.total_earnings - daily_quota - gas_expense
             
             px, py = panel_rect.x, panel_rect.y
@@ -1098,12 +1086,7 @@ def run_caldag_frame(screen, keys):
             hint_f = pygame.font.SysFont("arial", 18, bold=True)
             hint_s = hint_f.render("Press anywhere to back to main menu", True, (255, 255, 255))
             screen.blit(hint_s, ((width - hint_s.get_width()) // 2, height - 40))
-            
-            if abs(math.sin(ui.win_anim_counter)) > 0.9:
-                flash = pygame.Surface((width, height))
-                flash.set_alpha(40)
-                flash.fill((255, 255, 255))
-                screen.blit(flash, (0,0))
+        
 
     # --- L O S E / G L I T C H   S Y S T E M ---
     if ui.show_lose_panel:
@@ -1119,23 +1102,13 @@ def run_caldag_frame(screen, keys):
         
         screen.blit(bg_surface, (shake_offset_x, shake_offset_y))
         
-        if random.randint(0, 5) == 0:
-            glitch_surf = bg_surface.copy()
-            glitch_surf.fill((255, 0, 0), special_flags=pygame.BLEND_RGB_MULT)
-            glitch_surf.set_alpha(120)
-            screen.blit(glitch_surf, (shake_offset_x + 15, shake_offset_y))
-            
+    
         overlay = pygame.Surface((width, height), pygame.SRCALPHA)
         overlay.fill((20, 0, 0, 180)) 
         screen.blit(overlay, (0, 0))
         
         l_rect = assets.lose_panel.get_rect(center=(width // 2 + shake_offset_x, height // 2 + shake_offset_y))
         screen.blit(assets.lose_panel, l_rect)
-        
-        if random.randint(0, 3) == 0:
-            for _ in range(20):
-                noise_y = random.randint(0, height)
-                pygame.draw.line(screen, (200, 200, 200), (0, noise_y), (width, noise_y), 1)
                 
         hint_f = pygame.font.SysFont("arial", 18, bold=True)
         hint_s = hint_f.render("Press anywhere to back to main menu", True, (255, 100, 100))

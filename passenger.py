@@ -69,7 +69,7 @@ class Passenger:
         self.is_riding = False
         self.has_requested = False
         self.alpha = 255
-        self.pos = pygame.Vector2(random.randint(100, 750), random.randint(100, 550))
+        self.pos = pygame.Vector2(random.randint(100, 750), random.randint(100, 550)) #random lumalabas
         self.is_special = (random.randint(1, 100) <= 35) 
         
 # ======================================================

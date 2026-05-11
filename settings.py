@@ -88,12 +88,38 @@ passenger_types = ["Regular", "Student", "Senior", "PWD"]
 # S P E C I A L  M I S S I O N  D E S T I N A T I O N S
 # ======================================================
 # 100% Safe Coordinates (Nasa gitna ng kalsada, iwas hitboxes)
-special_destinations = [
-    pygame.Vector2(115, 450),  # Lucao (Kaliwang kalsada, gitna ng Carael at School)
-    pygame.Vector2(200, 60),   # Dagupan City (Taas na kalsada, gitna ng Carael at Pugaro)
-    pygame.Vector2(300, 540),  # Nalsian / Banaoang (Babang kalsada, safe sa school at lasip)
-    pygame.Vector2(510, 350),  # Calasiao / Mayombo (Gitnang patayong kalsada)
-    pygame.Vector2(700, 120)   # Pantal papuntang kanan (Safe sa taas na mga bahay)
+# ======================================================
+# A L L  P A S S E N G E R  D E S T I N A T I O N S
+# ======================================================
+# Safe Coordinates para sa lahat ng pasahero (Nasa gitna ng kalsada)
+# ======================================================
+# A L L  P A S S E N G E R  D E S T I N A T I O N S (18 SPOTS)
+# ======================================================
+# 100% Safe Coordinates (Nasa labas ng house_hitboxes)
+all_destinations = [
+    # --- KANALIWANG KALSADA (Left Road) ---
+    pygame.Vector2(100, 100),
+    pygame.Vector2(100, 200),
+    pygame.Vector2(100, 300),
+    pygame.Vector2(100, 400),
+    pygame.Vector2(100, 500),
+    
+    # --- GITNANG KALSADA (Middle Roads) ---
+    pygame.Vector2(260, 50),
+    pygame.Vector2(260, 150),
+    pygame.Vector2(260, 250),
+    pygame.Vector2(260, 550),
+    pygame.Vector2(350, 320),  # Gitna ng map (Safe zone)
+    pygame.Vector2(350, 500),
+    
+    # --- KANANG KALSADA (Right Roads) ---
+    pygame.Vector2(490, 50),
+    pygame.Vector2(490, 150),
+    pygame.Vector2(490, 350),
+    pygame.Vector2(490, 500),
+    pygame.Vector2(720, 100),
+    pygame.Vector2(720, 380),
+    pygame.Vector2(720, 600)
 ]
 
 # ======================================================

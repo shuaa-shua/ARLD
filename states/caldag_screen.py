@@ -43,9 +43,9 @@ def reset_game_state(new_state):
     jeep.jeep_passengers_count = 0
     ui.stats = {"Regular": 0, "Student": 0, "Senior": 0, "PWD": 0}
     
-    jeep.active_mission_dest = None
-    jeep.active_mission_passenger = None
-    jeep.mission_notif_timer = 0
+    # jeep.active_mission_dest = None
+    # jeep.active_mission_passenger = None
+    # jeep.mission_notif_timer = 0
     
     # --- 3. RESET POSITION & PHYSICS ---
     jeep.jeep_x = width // 2 
@@ -293,16 +293,8 @@ def run_caldag_frame(screen, keys):
                     jeep_screen_x = (jeep.jeep_x - cam_x) * zoom_factor
                     jeep_screen_y = (jeep.jeep_y - cam_y) * zoom_factor
                     
-                    # --- ASSIGN SPECIAL MISSION ---
-                    if p.is_special and jeep.active_mission_dest is None:
-                        jeep.active_mission_dest = random.choice(special_destinations)
-                        jeep.active_mission_passenger = p
-                        jeep.mission_notif_timer = pygame.time.get_ticks() # TRIGGER ANG BANNER
-                        ui.payment_notifs.append([[jeep_screen_x, jeep_screen_y - 60], "SPECIAL DROPOFF!", 255])
-                        assets.click_sound.play() # Sound notification na may mission
-                    else:
-                        ui.payment_notifs.append([[jeep_screen_x, jeep_screen_y - 30], f"P{fare}", 255])
-                    
+                    # Normal Drop-off payment
+                    ui.payment_notifs.append([[jeep_screen_x, jeep_screen_y - 30], f"P{fare}", 255])
                     assets.money_sound.play()
                 else:
                     p.is_riding = False
@@ -312,26 +304,33 @@ def run_caldag_frame(screen, keys):
         if keys[pygame.K_f] and not is_jeep_moving:
             for p in passenger.passengers_on_map:
                 if p.is_riding and p.has_requested:
-                    if current_time - jeep.last_drop_time > 500:
-                        p.is_riding = False
-                        p.is_leaving = True
-                        p.has_requested = False
-                        p.pos = pygame.Vector2(jeep.jeep_x + random.randint(-15, 15), jeep.jeep_y + random.randint(-15, 15))
-                        jeep.jeep_passengers_count -= 1
-                        jeep.last_drop_time = current_time # Reset timer
-                        
-                        # --- CLEAR MISSION KUNG SIYA YUNG BUMABA ---
-                        if p == jeep.active_mission_passenger:
-                            jeep.active_mission_dest = None
-                            jeep.active_mission_passenger = None
-                            ui.total_earnings += 50 # BONUS TIP!
+                    
+                    # ITO YUNG BAGONG CONDITION: I-check kung nasa tapat talaga ng destination yung jeep
+                    dist_to_dest = math.hypot(p.destination.x - jeep.jeep_x, p.destination.y - jeep.jeep_y)
+                    
+                    # Kung ang layo ng jeep sa circle ay less than 60 pixels, tsaka lang papayagan bumaba
+                    if dist_to_dest < 60:
+                        if current_time - jeep.last_drop_time > 500:
+                            p.is_riding = False
+                            p.is_leaving = True
+                            p.has_requested = False
+                            p.pos = pygame.Vector2(jeep.jeep_x + random.randint(-15, 15), jeep.jeep_y + random.randint(-15, 15))
+                            jeep.jeep_passengers_count -= 1
+                            jeep.last_drop_time = current_time # Reset timer
+                            
+                            # --- DITO NA ANG BAYAD LOGIC (Pagbaba) ---
+                            ui.total_earnings += p.fare
+                            ui.stats[p.p_type] += 1
+                            
                             cam_x_n, cam_y_n = camera.update_camera(jeep.jeep_x, jeep.jeep_y)
                             j_scr_x = (jeep.jeep_x - cam_x_n) * zoom_factor
                             j_scr_y = (jeep.jeep_y - cam_y_n) * zoom_factor
-                            ui.payment_notifs.append([[j_scr_x, j_scr_y - 40], "BONUS TIP: P50!", 255])
+                            
+                            # Floating money text & sound
+                            ui.payment_notifs.append([[j_scr_x, j_scr_y - 30], f"P{p.fare}", 255])
                             assets.money_sound.play()
                             
-                        break 
+                            break
 
         # --- ENGINE START DELAY CHECK ---
         if jeep.is_starting:
@@ -653,62 +652,36 @@ def run_caldag_frame(screen, keys):
             pygame.draw.arc(surf, (255, 255, 255, wave[2]), (0, 0, s_rad * 2, s_rad * 2), s_arc, e_arc, 3)
             screen.blit(surf, (d_x - s_rad, d_y - s_rad))
 
-    # --- SPECIAL MISSION GRAPHICS & GPS ---
-    if jeep.active_mission_dest:
-        dest_x = (jeep.active_mission_dest.x - cam_x) * zoom_factor
-        dest_y = (jeep.active_mission_dest.y - cam_y) * zoom_factor
-
-        # 1. DRAW GPS LINE 
-        dx = dest_x - jeep_screen_x
-        dy = dest_y - jeep_screen_y
-        dist = math.hypot(dx, dy)
-        
-        if dist > 0:
-            dash_length = 15
-            dash_gap = 10
-            total_dashes = int(dist / (dash_length + dash_gap))
+    # --- PASSENGER DESTINATIONS GRAPHICS & GPS ---
+    # --- PASSENGER DESTINATIONS GRAPHICS & GPS ---
+    for p in passenger.passengers_on_map:
+        if p.is_riding:
+            dest_x = (p.destination.x - cam_x) * zoom_factor
+            dest_y = (p.destination.y - cam_y) * zoom_factor
             
-            for i in range(total_dashes):
-                offset = (pygame.time.get_ticks() / 15) % (dash_length + dash_gap)
-                
-                start_ratio = max(0, (i * (dash_length + dash_gap) + offset) / dist)
-                end_ratio = min(1, (i * (dash_length + dash_gap) + dash_length + offset) / dist)
-                
-                start_pos = (jeep_screen_x + dx * start_ratio, jeep_screen_y + dy * start_ratio)
-                end_pos = (jeep_screen_x + dx * end_ratio, jeep_screen_y + dy * end_ratio)
-                
-                pygame.draw.line(screen, (0, 255, 255), start_pos, end_pos, 3) 
+            # 1. DRAW DROP-OFF CIRCLE PARA SA PASAHERONG ITO
+            pulse = abs(math.sin(pygame.time.get_ticks() / 300)) * 10
+            pygame.draw.circle(screen, (0, 255, 0), (int(dest_x), int(dest_y)), int(30 * zoom_factor + pulse), 3) 
 
-        # 2. DRAW DROP-OFF CIRCLE
-        pulse = abs(math.sin(pygame.time.get_ticks() / 300)) * 10
-        pygame.draw.circle(screen, (0, 255, 0), (int(dest_x), int(dest_y)), int(30 * zoom_factor + pulse), 3) 
-
-        dist_to_dest = math.hypot(jeep.active_mission_dest.x - jeep.jeep_x, jeep.active_mission_dest.y - jeep.jeep_y)
-        if dist_to_dest < 40 and not jeep.active_mission_passenger.has_requested:
-            jeep.active_mission_passenger.has_requested = True
-            # jeep.active_mission_passenger.message = "Dito na lang po!"
-            if not audio_manager.para_sound_played:
-                assets.knocking_sound.play()
-                audio_manager.para_sound_played = True
+            # 2. DRAW GPS LINE PARA SA PASAHERONG ITO
+            dx = dest_x - jeep_screen_x
+            dy = dest_y - jeep_screen_y
+            dist = math.hypot(dx, dy)
+            
+            if dist > 0:
+                dash_length = 15
+                dash_gap = 10
+                total_dashes = int(dist / (dash_length + dash_gap))
                 
- #======================================================================================
- 
-    # --- SPECIAL MISSION NOTIFICATION ---
-    if jeep.active_mission_dest and pygame.time.get_ticks() - jeep.mission_notif_timer < 4000:
-        notif_w, notif_h = 360, 60
-        notif_x = (width // 2) - (notif_w // 2)
-        notif_y = 80 
-        
-        banner_surf = pygame.Surface((notif_w, notif_h), pygame.SRCALPHA)
-        pygame.draw.rect(banner_surf, (0, 50, 150, 200), (0, 0, notif_w, notif_h), border_radius=10)
-        screen.blit(banner_surf, (notif_x, notif_y))
-        pygame.draw.rect(screen, (0, 255, 255), (notif_x, notif_y, notif_w, notif_h), 2, border_radius=10)
-        
-        txt1 = assets.medium_font.render("NEW PASSENGER MISSION!", True, (255, 255, 0))
-        txt2 = assets.small_font.render("line papunta sa destination.", True, (255, 255, 255))
-        
-        screen.blit(txt1, (notif_x + (notif_w//2) - (txt1.get_width()//2), notif_y + 10))
-        screen.blit(txt2, (notif_x + (notif_w//2) - (txt2.get_width()//2), notif_y + 35))
+                for i in range(total_dashes):
+                    offset = (pygame.time.get_ticks() / 15) % (dash_length + dash_gap)
+                    start_ratio = max(0, (i * (dash_length + dash_gap) + offset) / dist)
+                    end_ratio = min(1, (i * (dash_length + dash_gap) + dash_length + offset) / dist)
+                    
+                    start_pos = (jeep_screen_x + dx * start_ratio, jeep_screen_y + dy * start_ratio)
+                    end_pos = (jeep_screen_x + dx * end_ratio, jeep_screen_y + dy * end_ratio)
+                    
+                    pygame.draw.line(screen, (0, 255, 255), start_pos, end_pos, 3)
     
     # --- NIGHT OVERLAY DRAWING ---
     if ui.night_alpha > 0:

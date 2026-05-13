@@ -285,7 +285,7 @@ def run_caldag_frame(screen, keys):
                     # --- BAYAD LOGIC ---
                     p_type = random.choice(passenger_types)
                     fare = 11 if p_type in ["Student", "Senior", "PWD"] else 13
-                    ui.total_earnings += fare
+                    # ui.total_earnings += fare
                     ui.stats[p_type] += 1
                     
                     # CAMERA NA SUMUSUNOD
@@ -294,8 +294,8 @@ def run_caldag_frame(screen, keys):
                     jeep_screen_y = (jeep.jeep_y - cam_y) * zoom_factor
                     
                     # Normal Drop-off payment
-                    ui.payment_notifs.append([[jeep_screen_x, jeep_screen_y - 30], f"P{fare}", 255])
-                    assets.money_sound.play()
+                    # ui.payment_notifs.append([[jeep_screen_x, jeep_screen_y - 30], f"P{fare}", 255])
+                    # assets.money_sound.play()
                 else:
                     p.is_riding = False
                     
@@ -367,7 +367,8 @@ def run_caldag_frame(screen, keys):
                             for _ in range(8):
                                 effects.smoke_particles.append([[jeep.jeep_x, jeep.jeep_y], random.randint(4, 8), 200])
                         break
-                if not collision: 
+                    out_of_bounds = new_x < 15 or new_x > width - 15 or new_y < 15 or new_y > height - 15
+                if not collision and not out_of_bounds: 
                     jeep.jeep_x, jeep.jeep_y = new_x, new_y
                     
             elif keys[pygame.K_s]:
@@ -391,7 +392,8 @@ def run_caldag_frame(screen, keys):
                             jeep.last_damage_time = curr_t
                             assets.accident_sound.play()
                         break
-                if not collision: 
+                    out_of_bounds = new_x < 15 or new_x > width - 15 or new_y < 15 or new_y > height - 15
+                if not collision and not out_of_bounds: 
                     jeep.jeep_x, jeep.jeep_y = new_x, new_y
                     
         # --- STOP REVERSE SOUND ---
